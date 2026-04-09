@@ -38,9 +38,17 @@ api.interceptors.response.use(
     }
 
     // Handle 401 (token expired)
+    // 💡 AVOID redirecting to home if the error comes from login or signup
+    const isAuthRoute = 
+      originalRequest.url.includes("/auth/login") || 
+      originalRequest.url.includes("/auth/refresh") || 
+      originalRequest.url.includes("/auth/google") ||
+      originalRequest.url.includes("/auth/signup");
+
     if (
       error.response.status === 401 &&
-      !originalRequest._retry
+      !originalRequest._retry &&
+      !isAuthRoute
     ) {
       originalRequest._retry = true;
 
