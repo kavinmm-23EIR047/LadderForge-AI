@@ -1,21 +1,27 @@
-from passlib.context import CryptContext
+import bcrypt
 from datetime import datetime, timedelta
 from app.config.database import users_collection
 import requests
 import random
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 # ================= PASSWORD =================
 
 def hash_password(password: str):
-    password = password[:72]
-    return pwd_context.hash(password)
+    # Bcrypt requires bytes. It also has a 72-byte limit natively, 
+    # but we handle encoding to ensure compatibility.
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
 
 
 def verify_password(password: str, hashed: str):
-    password = password[:72]
-    return pwd_context.verify(password, hashed)
+    try:
+        return bcrypt.checkpw(
+            password.encode('utf-8'), 
+            hashed.encode('utf-8')
+        )
+    except Exception:
+        return False
 
 
 # ================= USER CREATE =================
