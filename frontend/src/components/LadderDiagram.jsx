@@ -188,7 +188,7 @@ export default function LadderDiagram({ project }) {
         return evaluateLadder(current, dt / simSpeed); // Pass raw dt as evaluateladder already uses simSpeed
       });
       setScanCount(s => s + 1);
-    }, 50); // 🐢 Educational Trace Speed (50ms) - Easier for humans to follow logic
+    }, 20); // ⚡ Standard 20ms Scan Cycle
 
     return () => clearInterval(intervalRef.current);
   }, [running, mode, evaluateLadder]);
@@ -247,7 +247,7 @@ export default function LadderDiagram({ project }) {
         <div style={S.stats}>
           {!isSmallMobile && <div style={S.chip}>SCAN: {scanCount}</div>}
           <div style={S.modeGroup}>
-            {[0.5, 1, 5, 10].map(s => (
+            {[1, 5, 10].map(s => (
               <button key={s} onClick={() => setSimSpeed(s)} style={simSpeed === s ? S.modeActive : S.modeBtn}>{s}x</button>
             ))}
           </div>
