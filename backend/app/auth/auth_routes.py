@@ -161,17 +161,14 @@ def verify_otp_route(data: VerifyOTPRequest):
 
 @router.post("/reset-password")
 def reset_password(data: ResetPasswordRequest):
-    valid, message = verify_otp(data.email, data.otp)
-
-    if not valid:
-        raise HTTPException(400, message)
-
-    success = reset_user_password(data.email, data.otp, data.new_password)
+    # reset_user_password internally verifies the OTP as well, 
+    # so we can call it directly to get both status and message.
+    success, message = reset_user_password(data.email, data.otp, data.new_password)
 
     if not success:
-        raise HTTPException(400, "Reset failed")
+        raise HTTPException(400, message)
 
-    return {"message": "Password reset successful"}
+    return {"message": message}
 
 
 # ---------------- REFRESH TOKEN ----------------
