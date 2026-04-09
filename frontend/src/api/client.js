@@ -1,26 +1,29 @@
 import axios from "axios";
 
+// ================= BASE URL =================
+const API_URL = import.meta.env.VITE_API_URL;
+
+// ================= AXIOS INSTANCE =================
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000",
+  baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-export const explainRungs = (data) =>
-  api.post("/explain-rungs", data);
-
 // ================= REQUEST INTERCEPTOR =================
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
 
-  return config;
-});
-
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 // ================= RESPONSE INTERCEPTOR =================
 api.interceptors.response.use(
@@ -29,8 +32,14 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Avoid crash if no response (network error)
+    if (!error.response) {
+      return Promise.reject(error);
+    }
+
+    // Handle 401 (token expired)
     if (
-      error.response?.status === 401 &&
+      error.response.status === 401 &&
       !originalRequest._retry
     ) {
       originalRequest._retry = true;
@@ -45,18 +54,20 @@ api.interceptors.response.use(
 
       try {
         const res = await axios.post(
-          "http://127.0.0.1:8000/auth/refresh",
-          {
-            refresh_token,
-          }
+          `${API_URL}/auth/refresh`,
+          { refresh_token }
         );
 
         const newAccess = res.data.access_token;
 
+        // Save new token
         localStorage.setItem("token", newAccess);
 
+        // Update headers
+        api.defaults.headers.common["Authorization"] = `Bearer ${newAccess}`;
         originalRequest.headers.Authorization = `Bearer ${newAccess}`;
 
+        // Retry original request
         return api(originalRequest);
 
       } catch (refreshErr) {
@@ -70,6 +81,9 @@ api.interceptors.response.use(
   }
 );
 
+// ================= EXPLAIN =================
+export const explainRungs = (data) =>
+  api.post("/explain-rungs", data);
 
 // ================= AUTH =================
 export const login = (data) =>
@@ -82,21 +96,12 @@ export const googleLogin = (token) =>
   api.post("/auth/google", { token });
 
 export const forgotPassword = (email) =>
-  api.post("/auth/forgot-password", {
-    email,
-  });
+  api.post("/auth/forgot-password", { email });
 
 export const verifyOTP = (email, otp) =>
-  api.post("/auth/verify-otp", {
-    email,
-    otp,
-  });
+  api.post("/auth/verify-otp", { email, otp });
 
-export const resetPassword = (
-  email,
-  otp,
-  new_password
-) =>
+export const resetPassword = (email, otp, new_password) =>
   api.post("/auth/reset-password", {
     email,
     otp,
@@ -104,10 +109,7 @@ export const resetPassword = (
   });
 
 export const refreshToken = (refresh_token) =>
-  api.post("/auth/refresh", {
-    refresh_token,
-  });
-
+  api.post("/auth/refresh", { refresh_token });
 
 // ================= CORE =================
 export const generate = (data) =>
@@ -119,7 +121,6 @@ export const getProjects = (uid) =>
 export const updateRung = (data) =>
   api.patch("/update-rung", data);
 
-
 // ================= ADMIN =================
 export const getUsers = () =>
   api.get("/admin/users");
@@ -127,5 +128,5 @@ export const getUsers = () =>
 export const deleteUser = (uid) =>
   api.delete(`/admin/users/${uid}`);
 
-
+// ================= EXPORT =================
 export default api;
