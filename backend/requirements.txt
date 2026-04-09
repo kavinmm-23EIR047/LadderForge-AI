@@ -1,6 +1,11 @@
+# Core
 fastapi
-uvicorn
+uvicorn[standard]
+
+# Database
 pymongo
+
+# Environment Variables
 python-dotenv
 
 # Validation
@@ -10,6 +15,9 @@ email-validator
 # Auth
 passlib[bcrypt]
 python-jose[cryptography]
+
+# HTTP Requests (Google OAuth)
+requests
 
 # AI
 groq
