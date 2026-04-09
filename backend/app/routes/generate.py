@@ -258,6 +258,10 @@ def generate_logic(data: PromptRequest):
     # STEP 1: Generate raw PLC JSON from AI
     plc_json = generate_plc_json(data.prompt)
 
+    if not plc_json:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail="AI generation failed. Please check GROQ_API_KEY and Try again later.")
+
     # STEP 2: CLEAN PIPELINE (order matters)
     plc_json = fix_ai_format(plc_json)          # standardize shapes, normalize latch/unlatch/set/reset
     plc_json = remove_invalid(plc_json)          # drop AND / OR / empty-type instructions

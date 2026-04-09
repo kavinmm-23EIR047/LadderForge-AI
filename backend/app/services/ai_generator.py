@@ -118,10 +118,18 @@ def normalize_plc(data):
     return data
 
 def generate_plc_json(prompt):
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        print("❌ CRITICAL: GROQ_API_KEY is missing from environment")
+        return None
+
     try:
+        # Re-initializing client to ensure it uses the fresh key if dynamic
+        client = Groq(api_key=api_key)
+        
         completion = client.chat.completions.create(
-            # Using 3.1-70b for stricter JSON compliance
-            model="llama-3.1-70b-versatile",
+            # Using llama-3.3-70b-versatile as it's the current stable high-end model
+            model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt}
@@ -130,13 +138,12 @@ def generate_plc_json(prompt):
         )
 
         content = completion.choices[0].message.content
+        if not content:
+            return None
+
         data = json.loads(content)
-
-        # 🔥 CRITICAL NORMALIZATION LAYER
-        data = normalize_plc(data)
-
-        return data
+        return normalize_plc(data)
 
     except Exception as e:
-        print(f"Gen Error: {e}")
+        print(f"❌ Gen Error: {str(e)}")
         return None
