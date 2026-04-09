@@ -10,7 +10,7 @@ const RUNG_HEIGHT = 160;
 const WIRE_THICKNESS = 3;
 
 /** Base Component for 'Joined Wire' look */
-const InstructionWrapper = ({ children, active, tag, label, width = 60, height = 40, isOutput = false, isDark }) => {
+const InstructionWrapper = ({ children, active, tag, label, width = 60, height = 40, isOutput = false, isDark, onClick }) => {
   const colorInactive = isDark ? "#404040" : "#cbd5e1"; 
   const color = active ? COLOR_ACTIVE : colorInactive;
   const glow = active ? GLOW_ACTIVE : "none";
@@ -18,15 +18,19 @@ const InstructionWrapper = ({ children, active, tag, label, width = 60, height =
   const bgColor = isDark ? "#0c0a09" : "#ffffff"; 
 
   return (
-    <div style={{ 
-      position: "relative", 
-      width, 
-      height: RUNG_HEIGHT - 60, 
-      display: "flex", 
-      alignItems: "center", 
-      justifyContent: "center",
-      flexShrink: 0
-    }}>
+    <div 
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+      style={{ 
+        position: "relative", 
+        width, 
+        height: RUNG_HEIGHT - 60, 
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "center",
+        flexShrink: 0,
+        cursor: onClick ? "pointer" : "default"
+      }}
+    >
       {/* Tag Label */}
       <div style={{
         position: "absolute",
