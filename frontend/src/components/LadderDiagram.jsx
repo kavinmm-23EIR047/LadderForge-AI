@@ -155,38 +155,40 @@ export default function LadderDiagram({ project }) {
     intervalRef.current = setInterval(() => {
       setTagValues(prev => {
         const now = Date.now();
-        const dt = now - lastScanTime.current;
+        // Calculate DT and apply simulation speed multiplier
+        const dt = (now - lastScanTime.current) * simSpeed;
         lastScanTime.current = now;
 
         let current = { ...prev };
 
-        // 🤖 AUTO-STIMULUS SEQUENCER
+        // 🤖 AUTO-STIMULUS SEQUENCER (Now synced to Scan Speed)
         if (mode === "auto") {
-          // ── Visual Highlight Sequence ──
-          // Move the active rung highlight through the program to show "processing"
-          setActiveRungIdx(prevIdx => (prevIdx + 1) >= rungs.length ? 0 : prevIdx + 1);
+          // Move the highlight at a "human-traceable" pace
+          setActiveRungIdx(prevIdx => {
+             // Move every 200ms (scaled by simSpeed)
+             if (Math.floor(now / (200 / simSpeed)) % 2 === 0) return (prevIdx + 1) % rungs.length;
+             return prevIdx;
+          });
 
-          // ── Input Stimulus ──
           Object.keys(current).forEach(tag => {
              const t = tag.toLowerCase();
-             // Pulse Start/Enable every few seconds
-             if (t.includes("start") || t.includes("enable") || t.includes("pb_1")) {
-                current[tag] = (now % 5000) < 600;
+             // Standard Industrial Pulse cycles (scaled by simSpeed)
+             if (t.includes("start") || t.includes("pb")) {
+                current[tag] = (now % (5000 / simSpeed)) < (600 / simSpeed);
              }
-             // Auto-satisfy Sensors/Limits if they are standard NO contacts
-             if (t.includes("sensor") || t.includes("limit") || t.includes("prox")) {
-                current[tag] = (now % 3000) < 1500;
+             if (t.includes("sensor") || t.includes("limit")) {
+                current[tag] = (now % (3000 / simSpeed)) < (1500 / simSpeed);
              }
           });
         } else {
-          // Manual Mode: Clear visual highlight or keep it at -1
           setActiveRungIdx(-1);
         }
 
-        return evaluateLadder(current, dt);
+        // Logic evaluation with high-precision DT
+        return evaluateLadder(current, dt / simSpeed); // Pass raw dt as evaluateladder already uses simSpeed
       });
       setScanCount(s => s + 1);
-    }, 40); // 40ms provides a good balance between "fast scan" and "visual trace"
+    }, 50); // 🐢 Educational Trace Speed (50ms) - Easier for humans to follow logic
 
     return () => clearInterval(intervalRef.current);
   }, [running, mode, evaluateLadder]);
@@ -245,7 +247,7 @@ export default function LadderDiagram({ project }) {
         <div style={S.stats}>
           {!isSmallMobile && <div style={S.chip}>SCAN: {scanCount}</div>}
           <div style={S.modeGroup}>
-            {[1, 5, 10].map(s => (
+            {[0.5, 1, 5, 10].map(s => (
               <button key={s} onClick={() => setSimSpeed(s)} style={simSpeed === s ? S.modeActive : S.modeBtn}>{s}x</button>
             ))}
           </div>
