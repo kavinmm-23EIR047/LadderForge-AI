@@ -43,9 +43,29 @@ const InstructionWrapper = ({ children, active, tag, label, width = 60, height =
         textAlign: "center",
         background: active ? `${COLOR_ACTIVE}15` : 'transparent',
         padding: '2px 4px',
-        borderRadius: 4
+        borderRadius: 4,
+        display: "flex",
+        alignItems: "center",
+        gap: 4
       }}>
-        {tag}
+        <input 
+          value={tag} 
+          onChange={(e) => onClick?.(e.target.value)} 
+          placeholder="TAG"
+          style={{
+            background: "none",
+            border: "none",
+            borderBottom: active ? `1px solid ${COLOR_ACTIVE}` : "1px solid transparent",
+            color: "inherit",
+            fontSize: "inherit",
+            fontWeight: "inherit",
+            fontFamily: "inherit",
+            textAlign: "center",
+            width: Math.max(40, tag.length * 7),
+            outline: "none",
+            padding: 0
+          }}
+        />
       </div>
 
       {/* Main Connection Wire */}
@@ -208,8 +228,11 @@ export default function LadderRung({
               const color = active ? COLOR_ACTIVE : colorInactive;
               if (inst.type === "contact") {
                 return (
-                  <InstructionWrapper key={idx} active={active} tag={inst.tag} label={getLabel(inst.tag)} isDark={isDark} onClick={() => onTagClick(inst.tag)}>
-                    <div style={{ position: "relative", width: 22, height: 40, background: bgColor, display: "flex", justifyContent: "space-between", padding: '0 2px' }}>
+                  <InstructionWrapper key={idx} active={active} tag={inst.tag} label={getLabel(inst.tag)} isDark={isDark} onClick={(newTag) => onUpdateInstruction(inst.id, { tag: newTag })}>
+                    <div 
+                      onClick={(e) => { e.stopPropagation(); onUpdateInstruction(inst.id, { mode: inst.mode === "NO" ? "NC" : "NO" }); }}
+                      style={{ position: "relative", width: 22, height: 40, background: bgColor, display: "flex", justifyContent: "space-between", padding: '0 2px', cursor: "pointer" }}
+                    >
                       <div style={{ width: 5, height: "100%", background: color, borderRadius: 1 }} />
                       {inst.mode === "NC" && <div style={{ position: "absolute", width: 5, height: "135%", background: color, top: "-17%", left: "40%", transform: "rotate(-35deg)", borderRadius: 1 }} />}
                       <div style={{ width: 5, height: "100%", background: color, borderRadius: 1 }} />
@@ -246,13 +269,23 @@ export default function LadderRung({
               }
               if (inst.type === "timer" || inst.type === "counter") {
                 return (
-                  <InstructionWrapper key={idx} active={energized} tag={inst.tag} label={getLabel(inst.tag)} width={120} isOutput isDark={isDark}>
+                  <InstructionWrapper key={idx} active={energized} tag={inst.tag} label={getLabel(inst.tag)} width={120} isOutput isDark={isDark} onClick={(newTag) => onUpdateInstruction(inst.id, { tag: newTag })}>
                     <PLCBox title={inst.subtype || (inst.type === "timer" ? "TON" : "CTU")} active={energized} width={110} isDark={isDark}>
                       <Attribute label="PRE" value={inst.preset} onChange={(v) => onUpdateInstruction(inst.id, { preset: v })} active={energized} isDark={isDark} />
-                      <div style={{ fontSize: 9, fontWeight: 900, color: energized ? COLOR_ACTIVE : (isDark ? "#555" : "#94a3b8"), display: 'flex', justifyContent: 'space-between' }}>
+                      <div style={{ 
+                        fontSize: 9, 
+                        fontWeight: 900, 
+                        color: energized ? COLOR_ACTIVE : (isDark ? "#555" : "#94a3b8"), 
+                        display: 'flex', 
+                        justifyContent: 'space-between',
+                        animation: energized ? "accPulse 1s infinite" : "none"
+                      }}>
                          <span>ACC:</span>
                          <span style={{ color: energized ? COLOR_ACTIVE : inherit }}>{Math.round(tagValues[`${inst.tag}.ACC`] || 0)}</span>
                       </div>
+                      <style>{`
+                        @keyframes accPulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+                      `}</style>
                     </PLCBox>
                   </InstructionWrapper>
                 );
