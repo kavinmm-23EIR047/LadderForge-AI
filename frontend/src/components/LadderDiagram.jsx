@@ -43,6 +43,10 @@ export default function LadderDiagram({ project }) {
   const isMobile = windowWidth < 1024;
   const isSmallMobile = windowWidth < 600;
 
+  // ── INDUSTRIAL PLC CONSTANTS ──
+  const SCAN_TIME = 20; // Fixed 20ms scan time
+  const [simTime, setSimTime] = useState(0);
+
   const [activeTab, setActiveTab] = useState("diagram");
   const [rungs, setRungs] = useState(project?.plc_logic?.rungs || []);
   const [tagValues, setTagValues] = useState({});
@@ -58,7 +62,6 @@ export default function LadderDiagram({ project }) {
 
   const tagMeta = useRef({});
   const intervalRef = useRef(null);
-  const lastScanTime = useRef(Date.now());
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -79,13 +82,16 @@ export default function LadderDiagram({ project }) {
       }
     });
     setTagValues(initVals);
-    setRunning(false); setActiveRungIdx(-1);
+    setRunning(false); 
+    setActiveRungIdx(-1);
+    setSimTime(0);
+    setScanCount(0);
   }, [project?.project_id]);
 
   const evaluateLadder = useCallback((prevTags, dt) => {
     const next = { ...prevTags };
-    const effectiveDt = dt * simSpeed;
-
+    
+    // Industrial Scan Order: Top-to-Bottom
     rungs.forEach(rung => {
       const contacts = rung.instructions.filter(i => i.type === "contact");
       const compares = rung.instructions.filter(i => i.type === "compare");
@@ -95,6 +101,7 @@ export default function LadderDiagram({ project }) {
       const moves = rung.instructions.filter(i => i.type === "move");
       const maths = rung.instructions.filter(i => i.type === "math");
 
+      // Rung Logic Continuity (Series)
       const energized = (contacts.length === 0 || contacts.every(i => i.mode === "NC" ? !next[i.tag] : !!next[i.tag])) &&
         (compares.length === 0 || compares.every(i => {
           const v = Number(next[i.tag] ?? 0), t = Number(i.value ?? 0);
@@ -105,15 +112,20 @@ export default function LadderDiagram({ project }) {
           return true;
         }));
 
+      // TON (Timer On Delay) - Industrial Logic
       timers.forEach(i => {
         const accTag = `${i.tag}.ACC`;
         const doneTag = `${i.tag}_done`;
         if (energized && i.subtype === "TON") {
-          next[accTag] = Math.min(Number(i.preset), (next[accTag] || 0) + effectiveDt);
+          next[accTag] = Math.min(Number(i.preset), (next[accTag] || 0) + dt);
           next[doneTag] = next[accTag] >= Number(i.preset);
-        } else { next[accTag] = 0; next[doneTag] = false; }
+        } else if (i.subtype === "TON") { 
+          // Reset TON when rung is false
+          next[accTag] = 0; next[doneTag] = false; 
+        }
       });
 
+      // CTU (Count Up) - Rising Edge Logic
       counters.forEach(i => {
         const accTag = `${i.tag}.ACC`;
         const pulseTag = `${i.tag}_pulse`;
@@ -121,12 +133,16 @@ export default function LadderDiagram({ project }) {
         if (energized && !prevTags[pulseTag]) {
           next[accTag] = (next[accTag] || 0) + 1;
           next[pulseTag] = true;
-        } else if (!energized) { next[pulseTag] = false; }
+        } else if (!energized) { 
+          next[pulseTag] = false; 
+        }
         next[doneTag] = next[accTag] >= Number(i.preset);
       });
 
       if (energized) {
-        moves.forEach(i => next[i.destination] = Number(next[i.source] ?? i.source));
+        moves.forEach(i => {
+          next[i.destination] = Number(next[i.source] ?? i.source);
+        });
         maths.forEach(i => {
           const a = Number(next[i.source_a] ?? i.source_a), b = Number(next[i.source_b] ?? i.source_b);
           if (i.operator === "add") next[i.destination] = a + b;
@@ -135,6 +151,7 @@ export default function LadderDiagram({ project }) {
           if (i.operator === "div") next[i.destination] = b !== 0 ? a / b : 0;
         });
       }
+
       coils.forEach(coil => {
         if (coil.mode === "OTL") { if (energized) next[coil.tag] = true; }
         else if (coil.mode === "OTU") { if (energized) next[coil.tag] = false; }
@@ -142,56 +159,57 @@ export default function LadderDiagram({ project }) {
       });
     });
     return next;
-  }, [rungs, simSpeed]);
+  }, [rungs]);
 
   useEffect(() => {
     if (!running) {
-      lastScanTime.current = Date.now();
       if (intervalRef.current) clearInterval(intervalRef.current);
       return;
     }
 
-    lastScanTime.current = Date.now();
     intervalRef.current = setInterval(() => {
       setTagValues(prev => {
-        const now = Date.now();
-        // Calculate DT and apply simulation speed multiplier
-        const dt = (now - lastScanTime.current) * simSpeed;
-        lastScanTime.current = now;
-
         let current = { ...prev };
+        
+        // ── SCAN CYCLE REPLICATOR ──
+        // We run multiple logical scans per tick to simulate 5x/10x speeds 
+        // without sacrificing logic precision.
+        for (let s = 0; s < simSpeed; s++) {
+          
+          // 🤖 AUTO-STIMULUS (Cycle-Based)
+          if (mode === "auto") {
+             setSimTime(t => {
+               const nt = t + SCAN_TIME;
+               
+               Object.keys(current).forEach(tag => {
+                 const tagLow = tag.toLowerCase();
+                 // Pulse Start every 5 seconds (logical time)
+                 if (tagLow.includes("start") || tagLow.includes("pb_1")) {
+                   current[tag] = (nt % 5000) < 600;
+                 }
+                 // Toggle sensors every 3 seconds (logical time)
+                 if (tagLow.includes("sensor") || tagLow.includes("limit")) {
+                   current[tag] = (nt % 3000) < 1500;
+                 }
+               });
+               return nt;
+             });
+          }
 
-        // 🤖 AUTO-STIMULUS SEQUENCER (Now synced to Scan Speed)
-        if (mode === "auto") {
-          // Move the highlight at a "human-traceable" pace
-          setActiveRungIdx(prevIdx => {
-             // Move every 200ms (scaled by simSpeed)
-             if (Math.floor(now / (200 / simSpeed)) % 2 === 0) return (prevIdx + 1) % rungs.length;
-             return prevIdx;
-          });
+          // Sequential Rung Highlighting (Visual step-by-step)
+          setActiveRungIdx(idx => (idx + 1) % rungs.length);
 
-          Object.keys(current).forEach(tag => {
-             const t = tag.toLowerCase();
-             // Standard Industrial Pulse cycles (scaled by simSpeed)
-             if (t.includes("start") || t.includes("pb")) {
-                current[tag] = (now % (5000 / simSpeed)) < (600 / simSpeed);
-             }
-             if (t.includes("sensor") || t.includes("limit")) {
-                current[tag] = (now % (3000 / simSpeed)) < (1500 / simSpeed);
-             }
-          });
-        } else {
-          setActiveRungIdx(-1);
+          // Evaluate the ladder with fixed timestep
+          current = evaluateLadder(current, SCAN_TIME);
         }
-
-        // Logic evaluation with high-precision DT
-        return evaluateLadder(current, dt / simSpeed); // Pass raw dt as evaluateladder already uses simSpeed
+        
+        return current;
       });
-      setScanCount(s => s + 1);
-    }, 20); // ⚡ Standard 20ms Scan Cycle
+      setScanCount(sc => sc + 1);
+    }, 20); // Physical anchor: 20ms
 
     return () => clearInterval(intervalRef.current);
-  }, [running, mode, evaluateLadder]);
+  }, [running, mode, simSpeed, rungs.length, evaluateLadder]);
 
   const handleUpdateInstruction = (instId, updates) => {
     const updated = rungs.map(r => ({
