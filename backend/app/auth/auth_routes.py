@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, BackgroundTasks
 from pydantic import BaseModel, EmailStr
 from app.models.user_model import UserCreate, UserLogin
 from app.auth.auth_service import (
@@ -44,7 +44,7 @@ class RefreshTokenRequest(BaseModel):
 # ---------------- SIGNUP ----------------
 
 @router.post("/signup")
-def signup(user: UserCreate):
+def signup(user: UserCreate, background_tasks: BackgroundTasks):
     existing = users_collection.find_one({"email": user.email})
 
     if existing:
@@ -52,20 +52,12 @@ def signup(user: UserCreate):
 
     create_user(user.dict())
 
-    send_email(
+    # Send email in background to avoid API delay
+    background_tasks.add_task(
+        send_email,
         to=user.email,
         subject="Welcome to LadderAI 🚀",
-        body=f"""
-Hi {user.name},
-
-Welcome to LadderAI 🚀
-
-Your account has been created successfully.
-
-Enjoy building ladder logic with AI.
-
-Team LadderAI
-"""
+        body=f"Hi {user.name},\n\nWelcome to LadderAI! Your account is ready.\n\nEnjoy building ladder logic with AI."
     )
 
     return {"message": "Signup successful"}
