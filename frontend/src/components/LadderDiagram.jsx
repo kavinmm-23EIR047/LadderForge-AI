@@ -159,7 +159,7 @@ export default function LadderDiagram({ project }) {
       });
     });
     return next;
-  }, [rungs]);
+  }, [rungs, project?.plc_logic?.rungs]);
 
   useEffect(() => {
     if (!running) {
@@ -170,50 +170,34 @@ export default function LadderDiagram({ project }) {
     intervalRef.current = setInterval(() => {
       setTagValues(prev => {
         let current = { ...prev };
-
-        // ── SCAN CYCLE REPLICATOR ──
-        // We run multiple logical scans per tick to simulate 5x/10x speeds 
-        // without sacrificing logic precision.
+        
+        // Logical Scans
         for (let s = 0; s < simSpeed; s++) {
-
-          // 🤖 AUTO-STIMULUS (Sequential Process Cycle)
           if (mode === "auto") {
             setSimTime(t => {
               const nt = t + SCAN_TIME;
-              const cycleDuration = 10000; // 10s full cycle
-              const step = (nt % cycleDuration) / cycleDuration; // 0 to 1
+              const cycleDuration = 10000;
+              const step = (nt % cycleDuration) / cycleDuration;
 
               Object.keys(current).forEach(tag => {
                 const tagLow = tag.toLowerCase();
-                // Step-based sequence:
-                if (tagLow.includes("start") || tagLow.includes("pb_1")) {
-                  current[tag] = step < 0.1; // Momentary pulse at start
-                }
-                if (tagLow.includes("sensor_1") || tagLow.includes("gate_open")) {
-                  current[tag] = step > 0.2 && step < 0.5;
-                }
-                if (tagLow.includes("sensor_2") || tagLow.includes("limit_sw")) {
-                  current[tag] = step > 0.5 && step < 0.8;
-                }
-                if (tagLow.includes("reset") || tagLow.includes("stop")) {
-                  current[tag] = step > 0.9;
-                }
+                if (tagLow.includes("start") || tagLow.includes("pb_1")) current[tag] = step < 0.1;
+                if (tagLow.includes("sensor_1") || tagLow.includes("gate_open")) current[tag] = step > 0.2 && step < 0.5;
+                if (tagLow.includes("sensor_2") || tagLow.includes("limit_sw")) current[tag] = step > 0.5 && step < 0.8;
+                if (tagLow.includes("reset") || tagLow.includes("stop")) current[tag] = step > 0.9;
               });
               return nt;
             });
           }
-
-          // Sequential Rung Highlighting (Visual step-by-step)
-          setActiveRungIdx(idx => (idx + 1) % rungs.length);
-
-          // Evaluate the ladder with fixed timestep
           current = evaluateLadder(current, SCAN_TIME);
         }
-
         return current;
       });
+
+      // Visual Highlight moves once per physical frame (20ms)
+      setActiveRungIdx(idx => (idx + 1) % (rungs.length || 1));
       setScanCount(sc => sc + 1);
-    }, 20); // Physical anchor: 20ms
+    }, 20);
 
     return () => clearInterval(intervalRef.current);
   }, [running, mode, simSpeed, rungs.length, evaluateLadder]);
