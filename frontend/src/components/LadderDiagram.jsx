@@ -157,10 +157,37 @@ export default function LadderDiagram({ project }) {
         const now = Date.now();
         const dt = now - lastScanTime.current;
         lastScanTime.current = now;
-        return evaluateLadder(prev, dt);
+
+        let current = { ...prev };
+
+        // 🤖 AUTO-STIMULUS LOGIC
+        // If in 'auto' mode, we simulate real-world events (like pressing Start or Sensor triggers)
+        if (mode === "auto") {
+          const ticks = Math.floor(now / 100); // 100ms units
+          
+          Object.keys(current).forEach(tag => {
+             const t = tag.toLowerCase();
+             
+             // 🚀 Pulse 'Start' tags every 4 seconds for 500ms
+             if (t.includes("start") || t.includes("pb_1")) {
+                const cycle = Math.floor(now / 4000) % 2 === 0;
+                const pulse = (now % 4000) < 500;
+                if (cycle && pulse) current[tag] = true;
+                else if (cycle && !pulse) current[tag] = false;
+             }
+
+             // 📡 Simulate Sensor flickers every 2.5 seconds
+             if (t.includes("sensor") || t.includes("limit")) {
+                const active = (now % 2500) < 1200;
+                current[tag] = active;
+             }
+          });
+        }
+
+        return evaluateLadder(current, dt);
       });
       setScanCount(s => s + 1);
-    }, 20);
+    }, 30); // 30ms for smoother performance on diverse hardware
 
     return () => clearInterval(intervalRef.current);
   }, [running, mode, evaluateLadder]);
