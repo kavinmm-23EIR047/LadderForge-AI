@@ -86,7 +86,7 @@ export default function Dashboard() {
             <div style={S.projectList}>
               {fetching ? <div style={S.statusText}>Syncing...</div> : projects.length === 0 ? <div style={S.statusText}>No deposits.</div> : (
                 projects.map(p => (
-                  <div key={p._id} onClick={() => setProject({ ...p, project_id: p._id })} style={currentProject?._id === p._id ? S.projectCardActive : S.projectCard}>
+                  <div key={p._id} onClick={() => setProject({ ...p, project_id: p._id, plc_logic: p.plc_logic || { rungs: [] } })} style={currentProject?._id === p._id ? S.projectCardActive : S.projectCard}>
                     <div style={S.projectIcon}>⚙</div>
                     <div style={S.projectInfo}><span style={S.pName}>{p.project_name}</span><span style={S.pPrompt}>{p.prompt}</span></div>
                   </div>

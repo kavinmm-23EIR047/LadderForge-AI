@@ -48,7 +48,7 @@ export default function LadderDiagram({ project }) {
   const [simTime, setSimTime] = useState(0);
 
   const [activeTab, setActiveTab] = useState("diagram");
-  const [rungs, setRungs] = useState(project?.plc_logic?.rungs || []);
+  const [rungs, setRungs] = useState([]);
   const [tagValues, setTagValues] = useState({});
   const [mode, setMode] = useState("manual");
   const [simSpeed, setSimSpeed] = useState(1);
@@ -92,7 +92,7 @@ export default function LadderDiagram({ project }) {
     const next = { ...prevTags };
     
     // Industrial Scan Order: Top-to-Bottom
-    rungs.forEach(rung => {
+    (rungs || []).forEach(rung => {
       const contacts = rung.instructions.filter(i => i.type === "contact");
       const compares = rung.instructions.filter(i => i.type === "compare");
       const coils = rung.instructions.filter(i => i.type === "coil");
@@ -212,7 +212,7 @@ export default function LadderDiagram({ project }) {
   }, [running, mode, simSpeed, rungs.length, evaluateLadder]);
 
   const handleUpdateInstruction = (instId, updates) => {
-    const updated = rungs.map(r => ({
+    const updated = (rungs || []).map(r => ({
       ...r,
       instructions: r.instructions.map(i => i.id === instId ? { ...i, ...updates } : i)
     }));
@@ -225,7 +225,7 @@ export default function LadderDiagram({ project }) {
     try {
       const res = await explainRungs({ rungs });
       const data = res.data?.explanations || [];
-      const map = {}; rungs.forEach((r, i) => map[r.rung_id] = data[i] || "...");
+      const map = {}; (rungs || []).forEach((r, i) => map[r.rung_id] = data[i] || "...");
       setAiExplains(map);
     } catch (e) { }
     setAiLoading(false);
@@ -305,7 +305,7 @@ export default function LadderDiagram({ project }) {
           <div style={S.canvas}>
             <div style={S.rungContainer}>
               <div style={{ display: "inline-flex", flexDirection: "column", minWidth: "100%", zoom: isMobile ? 0.75 : 1, paddingBottom: 20 }}>
-                {rungs.map((rung, idx) => (
+                {(rungs || []).map((rung, idx) => (
                   <LadderRung
                     key={rung.rung_id || idx}
                     rung={rung}
@@ -346,7 +346,7 @@ export default function LadderDiagram({ project }) {
               {aiLoading ? "ANALYZING..." : "RE-EXPLAIN ALL"}
             </button>
             <div style={S.aiScroll}>
-              {rungs.map((rung, idx) => (
+              {(rungs || []).map((rung, idx) => (
                 <div key={rung.rung_id} style={{ ...S.aiCard, borderLeft: selectedRungId === rung.rung_id ? `4px solid ${COLOR_ACTIVE}` : "4px solid transparent" }}>
                   <div style={S.aiRungNum}>RUNG {idx + 1}</div>
                   <p style={S.aiText}>{aiExplains[rung.rung_id] || "Ready..."}</p>
