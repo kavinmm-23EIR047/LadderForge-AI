@@ -208,7 +208,7 @@ export default function LadderRung({
               const color = active ? COLOR_ACTIVE : colorInactive;
               if (inst.type === "contact") {
                 return (
-                  <InstructionWrapper key={idx} active={active} tag={inst.tag} label={getLabel(inst.tag)} isDark={isDark}>
+                  <InstructionWrapper key={idx} active={active} tag={inst.tag} label={getLabel(inst.tag)} isDark={isDark} onClick={() => onTagClick(inst.tag)}>
                     <div style={{ position: "relative", width: 22, height: 40, background: bgColor, display: "flex", justifyContent: "space-between", padding: '0 2px' }}>
                       <div style={{ width: 5, height: "100%", background: color, borderRadius: 1 }} />
                       {inst.mode === "NC" && <div style={{ position: "absolute", width: 5, height: "135%", background: color, top: "-17%", left: "40%", transform: "rotate(-35deg)", borderRadius: 1 }} />}
@@ -219,7 +219,7 @@ export default function LadderRung({
               }
               if (inst.type === "compare") {
                 return (
-                  <InstructionWrapper key={idx} active={active} tag={inst.tag} label={getLabel(inst.tag)} width={100} isDark={isDark}>
+                  <InstructionWrapper key={idx} active={active} tag={inst.tag} label={getLabel(inst.tag)} width={100} isDark={isDark} onClick={() => onTagClick(inst.tag)}>
                     <PLCBox title={inst.operator || "CMP"} active={active} width={90} isDark={isDark}>
                       <Attribute label="REF" value={inst.value} onChange={(v) => onUpdateInstruction(inst.id, { value: v })} active={active} isDark={isDark} />
                       <div style={{ fontSize: 9, fontWeight: 900, color: active ? COLOR_ACTIVE : (isDark ? "#555" : "#94a3b8"), textAlign: "center" }}>V: {tagValues[inst.tag] ?? 0}</div>

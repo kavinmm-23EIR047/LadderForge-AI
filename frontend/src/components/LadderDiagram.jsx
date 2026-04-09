@@ -295,7 +295,19 @@ export default function LadderDiagram({ project }) {
                     tagMeta={tagMeta.current}
                     onTagClick={(t) => setTagValues(p => ({ ...p, [t]: !p[t] }))}
                     onUpdateInstruction={handleUpdateInstruction}
-                    energized={rung.instructions.filter(i => i.type === "contact").every(i => i.mode === "NC" ? !tagValues[i.tag] : !!tagValues[i.tag])}
+                    energized={(() => {
+                      const contacts = rung.instructions.filter(i => i.type === "contact");
+                      const compares = rung.instructions.filter(i => i.type === "compare");
+                      return (contacts.length === 0 || contacts.every(i => i.mode === "NC" ? !tagValues[i.tag] : !!tagValues[i.tag])) &&
+                             (compares.length === 0 || compares.every(i => {
+                               const v = Number(tagValues[i.tag] ?? 0), t = Number(i.value ?? 0);
+                               const op = i.operator;
+                               if (op === "LES") return v < t; if (op === "GRT") return v > t;
+                               if (op === "EQ" || op === "EQU") return v === t; if (op === "NEQ") return v !== t;
+                               if (op === "LEQ") return v <= t; if (op === "GEQ") return v >= t;
+                               return true;
+                             }));
+                    })()}
                     selected={selectedRungId === rung.rung_id}
                     onSelect={() => explainSingleRung(rung)}
                     active={running && activeRungIdx === idx}
