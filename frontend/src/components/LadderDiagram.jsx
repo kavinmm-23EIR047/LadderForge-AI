@@ -45,10 +45,13 @@ export default function LadderDiagram({ project }) {
 
   // ── INDUSTRIAL PLC CONSTANTS ──
   const SCAN_TIME = 20; // Fixed 20ms scan time
-  const simTimeRef = useRef(0);
+  const [simTime, setSimTime] = useState(0);
 
   const [activeTab, setActiveTab] = useState("diagram");
-  // ... line 50 ...
+  const [rungs, setRungs] = useState(project?.plc_logic?.rungs || []);
+  const [tagValues, setTagValues] = useState({});
+  const [mode, setMode] = useState("manual");
+  const [simSpeed, setSimSpeed] = useState(1);
   const [running, setRunning] = useState(false);
   const [scanCount, setScanCount] = useState(0);
   const [activeRungIdx, setActiveRungIdx] = useState(-1);
@@ -81,7 +84,7 @@ export default function LadderDiagram({ project }) {
     setTagValues(initVals);
     setRunning(false); 
     setActiveRungIdx(-1);
-    simTimeRef.current = 0;
+    setSimTime(0);
     setScanCount(0);
   }, [project?.project_id]);
 
@@ -165,41 +168,45 @@ export default function LadderDiagram({ project }) {
     }
 
     intervalRef.current = setInterval(() => {
-      // 1. Logic Processing (Deterministic Loop)
       setTagValues(prev => {
         let current = { ...prev };
         
-        // Logical Scans (1x = 1 scan, 5x = 5 scans, etc.)
+        // ── SCAN CYCLE REPLICATOR ──
+        // We run multiple logical scans per tick to simulate 5x/10x speeds 
+        // without sacrificing logic precision.
         for (let s = 0; s < simSpeed; s++) {
-          const nt = simTimeRef.current + (s * SCAN_TIME);
           
-          // 🤖 AUTO-STIMULUS (Cycle-Based Determinism)
+          // 🤖 AUTO-STIMULUS (Cycle-Based)
           if (mode === "auto") {
-             Object.keys(current).forEach(tag => {
-               const tagLow = tag.toLowerCase();
-               if (tagLow.includes("start") || tagLow.includes("pb")) current[tag] = (nt % 5000) < 600;
-               if (tagLow.includes("sensor") || tagLow.includes("limit")) current[tag] = (nt % 3000) < 1500;
+             setSimTime(t => {
+               const nt = t + SCAN_TIME;
+               
+               Object.keys(current).forEach(tag => {
+                 const tagLow = tag.toLowerCase();
+                 // Pulse Start every 5 seconds (logical time)
+                 if (tagLow.includes("start") || tagLow.includes("pb_1")) {
+                   current[tag] = (nt % 5000) < 600;
+                 }
+                 // Toggle sensors every 3 seconds (logical time)
+                 if (tagLow.includes("sensor") || tagLow.includes("limit")) {
+                   current[tag] = (nt % 3000) < 1500;
+                 }
+               });
+               return nt;
              });
           }
 
-          // Evaluate logic with fixed timestep
+          // Sequential Rung Highlighting (Visual step-by-step)
+          setActiveRungIdx(idx => (idx + 1) % rungs.length);
+
+          // Evaluate the ladder with fixed timestep
           current = evaluateLadder(current, SCAN_TIME);
         }
+        
         return current;
       });
-
-      // Update logical time ref (Master Clock)
-      simTimeRef.current += (simSpeed * SCAN_TIME);
-
-      // 2. Visual Trace (Smooth Rendering)
-      setActiveRungIdx(idx => {
-         const moveFrequency = Math.max(1, 6 - simSpeed);
-         if (scanCount % moveFrequency === 0) return (idx + 1) % rungs.length;
-         return idx;
-      });
-
       setScanCount(sc => sc + 1);
-    }, 20); 
+    }, 20); // Physical anchor: 20ms
 
     return () => clearInterval(intervalRef.current);
   }, [running, mode, simSpeed, rungs.length, evaluateLadder]);
