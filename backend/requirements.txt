@@ -2,6 +2,14 @@ fastapi
 uvicorn
 pymongo
 python-dotenv
+
+# Validation
 pydantic[email]
-groq
 email-validator
+
+# Auth
+passlib[bcrypt]
+python-jose[cryptography]
+
+# AI
+groq
