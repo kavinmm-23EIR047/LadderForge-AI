@@ -4,6 +4,7 @@ uvicorn[standard]
 
 # Database
 pymongo
+certifi
 
 # Environment Variables
 python-dotenv
@@ -14,6 +15,7 @@ email-validator
 
 # Auth
 passlib[bcrypt]
+bcrypt
 python-jose[cryptography]
 
 # HTTP Requests (Google OAuth)
