@@ -176,20 +176,27 @@ export default function LadderDiagram({ project }) {
         // without sacrificing logic precision.
         for (let s = 0; s < simSpeed; s++) {
           
-          // 🤖 AUTO-STIMULUS (Cycle-Based)
+          // 🤖 AUTO-STIMULUS (Sequential Process Cycle)
           if (mode === "auto") {
              setSimTime(t => {
                const nt = t + SCAN_TIME;
-               
+               const cycleDuration = 10000; // 10s full cycle
+               const step = (nt % cycleDuration) / cycleDuration; // 0 to 1
+
                Object.keys(current).forEach(tag => {
                  const tagLow = tag.toLowerCase();
-                 // Pulse Start every 5 seconds (logical time)
+                 // Step-based sequence:
                  if (tagLow.includes("start") || tagLow.includes("pb_1")) {
-                   current[tag] = (nt % 5000) < 600;
+                   current[tag] = step < 0.1; // Momentary pulse at start
                  }
-                 // Toggle sensors every 3 seconds (logical time)
-                 if (tagLow.includes("sensor") || tagLow.includes("limit")) {
-                   current[tag] = (nt % 3000) < 1500;
+                 if (tagLow.includes("sensor_1") || tagLow.includes("gate_open")) {
+                   current[tag] = step > 0.2 && step < 0.5;
+                 }
+                 if (tagLow.includes("sensor_2") || tagLow.includes("limit_sw")) {
+                   current[tag] = step > 0.5 && step < 0.8;
+                 }
+                 if (tagLow.includes("reset") || tagLow.includes("stop")) {
+                   current[tag] = step > 0.9;
                  }
                });
                return nt;
