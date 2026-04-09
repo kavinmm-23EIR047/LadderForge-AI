@@ -24,13 +24,27 @@ function inferTagType(tag, rungs) {
 function buildTagMeta(rungs) {
   const meta = {};
   if (!rungs) return meta;
-  rungs.forEach(r => r.instructions.forEach(i => {
+  (rungs || []).forEach(r => r.instructions.forEach(i => {
     const tags = [i.tag, i.destination, i.source, i.source_a].filter(Boolean);
-    tags.forEach(t => { if (!meta[t]) meta[t] = { type: "BOOL", value: null }; });
+    tags.forEach(t => { 
+      if (!meta[t]) meta[t] = { type: "BOOL", value: null }; 
+      if (i.type === "timer" || i.type === "counter") {
+        if (!meta[`${t}.ACC`]) meta[`${t}.ACC`] = { type: "INT", value: 0 };
+        if (!meta[`${t}_done`]) meta[`${t}_done`] = { type: "BOOL", value: false };
+      }
+    });
   }));
   Object.keys(meta).forEach(tag => {
-    meta[tag].type = inferTagType(tag, rungs);
-    meta[tag].value = meta[tag].type === "INT" ? 0 : false;
+    if (tag.includes(".ACC")) {
+      meta[tag].type = "INT";
+      meta[tag].value = 0;
+    } else if (tag.includes("_done")) {
+       meta[tag].type = "BOOL";
+       meta[tag].value = false;
+    } else {
+      meta[tag].type = inferTagType(tag, rungs);
+      meta[tag].value = meta[tag].type === "INT" ? 0 : false;
+    }
   });
   return meta;
 }
@@ -77,9 +91,6 @@ export default function LadderDiagram({ project }) {
     const initVals = {};
     Object.keys(tagMeta.current).forEach(t => {
       initVals[t] = tagMeta.current[t].value;
-      if (newRungs.some(r => r.instructions.some(i => (i.type === "timer" || i.type === "counter") && i.tag === t))) {
-        initVals[`${t}.ACC`] = 0;
-      }
     });
     setTagValues(initVals);
     setRunning(false);
