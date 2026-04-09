@@ -160,34 +160,33 @@ export default function LadderDiagram({ project }) {
 
         let current = { ...prev };
 
-        // 🤖 AUTO-STIMULUS LOGIC
-        // If in 'auto' mode, we simulate real-world events (like pressing Start or Sensor triggers)
+        // 🤖 AUTO-STIMULUS SEQUENCER
         if (mode === "auto") {
-          const ticks = Math.floor(now / 100); // 100ms units
-          
+          // ── Visual Highlight Sequence ──
+          // Move the active rung highlight through the program to show "processing"
+          setActiveRungIdx(prevIdx => (prevIdx + 1) >= rungs.length ? 0 : prevIdx + 1);
+
+          // ── Input Stimulus ──
           Object.keys(current).forEach(tag => {
              const t = tag.toLowerCase();
-             
-             // 🚀 Pulse 'Start' tags every 4 seconds for 500ms
-             if (t.includes("start") || t.includes("pb_1")) {
-                const cycle = Math.floor(now / 4000) % 2 === 0;
-                const pulse = (now % 4000) < 500;
-                if (cycle && pulse) current[tag] = true;
-                else if (cycle && !pulse) current[tag] = false;
+             // Pulse Start/Enable every few seconds
+             if (t.includes("start") || t.includes("enable") || t.includes("pb_1")) {
+                current[tag] = (now % 5000) < 600;
              }
-
-             // 📡 Simulate Sensor flickers every 2.5 seconds
-             if (t.includes("sensor") || t.includes("limit")) {
-                const active = (now % 2500) < 1200;
-                current[tag] = active;
+             // Auto-satisfy Sensors/Limits if they are standard NO contacts
+             if (t.includes("sensor") || t.includes("limit") || t.includes("prox")) {
+                current[tag] = (now % 3000) < 1500;
              }
           });
+        } else {
+          // Manual Mode: Clear visual highlight or keep it at -1
+          setActiveRungIdx(-1);
         }
 
         return evaluateLadder(current, dt);
       });
       setScanCount(s => s + 1);
-    }, 30); // 30ms for smoother performance on diverse hardware
+    }, 40); // 40ms provides a good balance between "fast scan" and "visual trace"
 
     return () => clearInterval(intervalRef.current);
   }, [running, mode, evaluateLadder]);
