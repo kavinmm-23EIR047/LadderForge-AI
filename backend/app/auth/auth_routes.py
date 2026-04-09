@@ -123,12 +123,14 @@ async def google_login(request: Request):
 # ---------------- FORGOT PASSWORD OTP ----------------
 
 @router.post("/forgot-password")
-def forgot_password(data: ForgotPasswordRequest):
+def forgot_password(data: ForgotPasswordRequest, background_tasks: BackgroundTasks):
     otp = save_otp(data.email)
     if not otp:
         raise HTTPException(404, "User not found")
 
-    send_email(
+    # Send email in background to avoid API delay
+    background_tasks.add_task(
+        send_email,
         to=data.email,
         subject="Reset Password OTP 🔐",
         body=f"Your OTP is: {otp}\nValid for 5 minutes."
