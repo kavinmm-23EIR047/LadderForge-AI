@@ -618,13 +618,13 @@ export default function Home() {
           <div>
             <div className="tag-badge fade-up" style={{ marginBottom: 32 }}>
               <span className="dot" />
-              IEC 61131-3 COMPLIANT PLATFORM • v4.0
+              BEST PLC LADDER LOGIC GENERATOR • IEC 61131-3
             </div>
 
             <h1 className="fade-up-2 hero-title" style={{ fontFamily: "var(--display)", fontSize: "clamp(44px,6vw,78px)", fontWeight: 800, lineHeight: 1.0, letterSpacing: "-0.04em", marginBottom: 28 }}>
-              PLC Ladder Logic<br />
-              <span style={{ color: "var(--primary)" }}>Training Workspace</span><br />
-              <span style={{ fontSize: "0.55em", color: "var(--txt2)", fontWeight: 600, letterSpacing: "-0.02em" }}>Powered by AI Synthesis</span>
+              LadderForge AI:<br />
+              <span style={{ color: "var(--primary)" }}>PLC Ladder Logic Generator</span><br />
+              <span style={{ fontSize: "0.55em", color: "var(--txt2)", fontWeight: 600, letterSpacing: "-0.02em" }}>Advanced Training & Simulation Workspace</span>
             </h1>
 
             <p className="fade-up-3" style={{ fontSize: 18, color: "var(--txt2)", lineHeight: 1.75, maxWidth: 560, marginBottom: 40 }}>
