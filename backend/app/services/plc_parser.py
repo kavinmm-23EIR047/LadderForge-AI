@@ -629,14 +629,17 @@ def normalize_plc(plc):
 # ---------------- LOGIC GATES PRESET RESOLVER ----------------
 def get_logic_gate_preset(prompt: str):
     """
-    Check if the user prompt is requesting one of the 8 standard Logic Gates
+    Check if the user prompt is requesting a standalone basic Logic Gate
     (AND, OR, XOR, NAND, NOR, NOT, XNOR, BUFFER).
-    Returns the exact 100% textbook standard IEC ladder logic diagram or None.
+    Returns a static preset ONLY if the prompt is strictly asking for a standard logic gate.
+    All other prompts are passed to the Groq AI generator.
     """
+    import re
     p = (prompt or "").lower().strip()
-    
-    # 1. XNOR GATE (A=B -> C=1): NO A & NO B on R1, NC A & NC B on R2
-    if "xnor" in p or "exclusive-nor" in p or "ex-nor" in p:
+
+    # Exact standalone gate patterns only
+    # E.g. "and", "and gate", "xor", "xor gate", "exclusive-or", "not gate", "inverter"
+    if p in ["xnor", "xnor gate", "exclusive-nor", "ex-nor"] or p == "xnor logic":
         return {
             "network_id": 1,
             "rungs": [
@@ -659,8 +662,7 @@ def get_logic_gate_preset(prompt: str):
             ]
         }
 
-    # 2. XOR GATE (A!=B -> C=1): NC A & NO B on R1, NO A & NC B on R2
-    if "xor" in p or "exclusive-or" in p or "ex-or" in p:
+    if p in ["xor", "xor gate", "exclusive-or", "ex-or"] or p == "xor logic":
         return {
             "network_id": 1,
             "rungs": [
@@ -683,8 +685,7 @@ def get_logic_gate_preset(prompt: str):
             ]
         }
 
-    # 3. NAND GATE (NOT(A AND B)): Parallel NC contacts (NC A -> C, NC B -> C)
-    if "nand" in p:
+    if p in ["nand", "nand gate"] or p == "nand logic":
         return {
             "network_id": 1,
             "rungs": [
@@ -705,8 +706,7 @@ def get_logic_gate_preset(prompt: str):
             ]
         }
 
-    # 4. NOR GATE (NOT(A OR B)): Series NC contacts (NC A & NC B -> C)
-    if "nor" in p:
+    if p in ["nor", "nor gate"] or p == "nor logic":
         return {
             "network_id": 1,
             "rungs": [
@@ -721,8 +721,7 @@ def get_logic_gate_preset(prompt: str):
             ]
         }
 
-    # 5. NOT GATE / INVERTER (NC A -> C)
-    if "not" in p or "inverter" in p:
+    if p in ["not", "not gate", "inverter"] or p == "not logic":
         return {
             "network_id": 1,
             "rungs": [
@@ -736,8 +735,7 @@ def get_logic_gate_preset(prompt: str):
             ]
         }
 
-    # 6. AND GATE (NO A & NO B -> C)
-    if "and" in p and "land" not in p and "band" not in p:
+    if p in ["and", "and gate"] or p == "and logic":
         return {
             "network_id": 1,
             "rungs": [
@@ -752,8 +750,7 @@ def get_logic_gate_preset(prompt: str):
             ]
         }
 
-    # 7. OR GATE (NO A -> C, NO B -> C)
-    if "or" in p and "motor" not in p and "door" not in p and "sensor" not in p and "floor" not in p and "error" not in p:
+    if p in ["or", "or gate"] or p == "or logic":
         return {
             "network_id": 1,
             "rungs": [
@@ -774,8 +771,7 @@ def get_logic_gate_preset(prompt: str):
             ]
         }
 
-    # 8. BUFFER GATE (NO A -> C)
-    if "buffer" in p or "yes gate" in p:
+    if p in ["buffer", "buffer gate", "yes gate"]:
         return {
             "network_id": 1,
             "rungs": [

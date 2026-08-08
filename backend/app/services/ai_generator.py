@@ -22,63 +22,53 @@ NEVER output explanations, markdown code fences, or any text outside the JSON.
 INSTRUCTION REFERENCE & TAG NAMING RULES
 ══════════════════════════════════════════════════════════════════════
 
-1. TAG NAMING RULES (CRITICAL):
-   • Keep tag names short, clear, and professional (e.g. "input_a", "input_b", "start_pb", "stop_pb", "red_light", "T_red", "T_red_done", "output_y").
-   • NEVER concatenate long descriptive strings (e.g. NEVER use "red_light_yellow_duration_done").
-   • Every instruction MUST have a valid "type": "contact", "coil", "timer", "counter", "compare", "move", or "math".
-   • NEVER use "type": "and" or "type": "or" directly — express logic gates using contacts (NO/NC) and coils (OTE).
+1. TAG NAMING & PRESERVATION RULES (CRITICAL):
+   • Use the EXACT tag names and I/O addresses provided in the prompt (e.g. "S1", "S2", "M1", "M2", "I0.0", "I0.1", "Q0.0", "Q0.1", "start_pb", "stop_pb").
+   • When 2 switches (S1, S2) and 2 motors (M1, M2) are mentioned:
+     - ALWAYS name the inputs "S1" (or "S1 (I0.0)") and "S2" (or "S2 (I0.1)").
+     - ALWAYS name the outputs "M1" (or "M1 (Q0.0)") and "M2" (or "M2 (Q0.1)").
+     - NEVER map 2 switches and 2 motors to generic tags like "A", "B", "C" or a single coil!
 
-2. CONTACT  – reads a BOOL tag
+2. MULTI-MOTOR & INTERLOCKING RULES (CRITICAL):
+   • If a prompt mentions 2 motors (M1, M2), you MUST generate at least 2 separate rungs:
+     - Rung 1 for Motor 1 (M1 / Q0.0)
+     - Rung 2 for Motor 2 (M2 / Q0.1)
+   • For interlocked 2-motor systems (M1 and M2 cannot run together):
+     - Rung 1 (Motor 1): Contact NO "S1", Contact NC "M2" (or NC "S2" for priority), Coil OTE "M1"
+     - Rung 2 (Motor 2): Contact NO "S2", Contact NC "S1", Contact NC "M1", Coil OTE "M2"
+
+3. CONTACT  – reads a BOOL tag
    NO (Normally Open)  – passes power when tag = TRUE
-   NC (Normally Closed) – passes power when tag = FALSE (use for stops, E-stops, interlocks, or NOT logic)
-   { "id": "i1", "type": "contact", "mode": "NO", "tag": "input_a" }
-   { "id": "i2", "type": "contact", "mode": "NC", "tag": "input_b" }
+   NC (Normally Closed) – passes power when tag = FALSE (use for stops, E-stops, interlocks, NC contacts for priority, or NOT logic)
+   { "id": "i1", "type": "contact", "mode": "NO", "tag": "S1" }
+   { "id": "i2", "type": "contact", "mode": "NC", "tag": "M2" }
 
-3. COIL  – writes a BOOL output
+4. COIL  – writes a BOOL output
    OTE  – energise output (output = rung power state)
    OTL  – latch (set TRUE until OTU)
    OTU  – unlatch (set FALSE)
-   { "id": "i3", "type": "coil", "mode": "OTE", "tag": "output_y" }
+   { "id": "i3", "type": "coil", "mode": "OTE", "tag": "M1" }
 
-4. TIMER  – time delay block (preset in ms: 1000 = 1s, 3000 = 3s, 10000 = 10s)
+5. TIMER / COUNTER / COMPARE / MOVE / MATH
    { "id": "i4", "type": "timer", "subtype": "TON", "tag": "T_red", "preset": 10000 }
-
-5. COUNTER / COMPARE / MOVE / MATH
    { "id": "i5", "type": "compare", "operator": "GRT", "tag": "temp_val", "value": 75 }
 
 ══════════════════════════════════════════════════════════════════════
-LOGIC GATE DESIGN EXAMPLES (TEXTBOOK ACCURACY)
+LOGIC GATE & CONTROL SYSTEM DESIGN EXAMPLES
 ══════════════════════════════════════════════════════════════════════
 
-• 1. AND Gate:
-  Rung 1: Contact (mode: "NO", tag: "A"), Contact (mode: "NO", tag: "B"), Coil (mode: "OTE", tag: "C")
+• 1. Two Switches & Two Motors (Interlocked Control System):
+  Rung 1: Contact (NO, "S1"), Contact (NC, "M2"), Coil (OTE, "M1")
+  Rung 2: Contact (NO, "S2"), Contact (NC, "S1"), Contact (NC, "M1"), Coil (OTE, "M2")
 
-• 2. OR Gate:
-  Rung 1: Contact (mode: "NO", tag: "A"), Coil (mode: "OTE", tag: "C")
-  Rung 2: Contact (mode: "NO", tag: "B"), Coil (mode: "OTE", tag: "C")
+• 2. AND Gate (Explicit logic gate prompt only):
+  Rung 1: Contact (mode: "NO", tag: "A"), Contact (mode: "NO", tag: "B"), Coil (mode: "OTE", tag: "C")
 
 • 3. XOR Gate (Exclusive-OR):
   Rung 1: Contact (mode: "NC", tag: "A"), Contact (mode: "NO", tag: "B"), Coil (mode: "OTE", tag: "C")
   Rung 2: Contact (mode: "NO", tag: "A"), Contact (mode: "NC", tag: "B"), Coil (mode: "OTE", tag: "C")
 
-• 4. NAND Gate:
-  Rung 1: Contact (mode: "NC", tag: "A"), Coil (mode: "OTE", tag: "C")
-  Rung 2: Contact (mode: "NC", tag: "B"), Coil (mode: "OTE", tag: "C")
-
-• 5. NOR Gate:
-  Rung 1: Contact (mode: "NC", tag: "A"), Contact (mode: "NC", tag: "B"), Coil (mode: "OTE", tag: "C")
-
-• 6. NOT Gate (Inverter):
-  Rung 1: Contact (mode: "NC", tag: "A"), Coil (mode: "OTE", tag: "C")
-
-• 7. XNOR Gate (Exclusive-NOR):
-  Rung 1: Contact (mode: "NO", tag: "A"), Contact (mode: "NO", tag: "B"), Coil (mode: "OTE", tag: "C")
-  Rung 2: Contact (mode: "NC", tag: "A"), Contact (mode: "NC", tag: "B"), Coil (mode: "OTE", tag: "C")
-
-• 8. BUFFER Gate:
-  Rung 1: Contact (mode: "NO", tag: "A"), Coil (mode: "OTE", tag: "C")
-
-• Traffic Light System (Red 10s -> Yellow 3s -> Green 10s):
+• 4. Traffic Light System (Red 10s -> Yellow 3s -> Green 10s):
   Rung 1: Contact (NO, "start_pb"), Contact (NC, "T_green_done"), Coil (OTE, "red_light"), Timer (TON, "T_red", 10000)
   Rung 2: Contact (NO, "T_red_done"), Contact (NC, "T_yellow_done"), Coil (OTE, "yellow_light"), Timer (TON, "T_yellow", 3000)
   Rung 3: Contact (NO, "T_yellow_done"), Contact (NC, "T_green_done"), Coil (OTE, "green_light"), Timer (TON, "T_green", 10000)

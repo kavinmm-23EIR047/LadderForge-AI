@@ -257,7 +257,7 @@ def validate_plc(plc_json: dict) -> list[str]:
 def generate_logic(data: PromptRequest):
 
     # STEP 1: Check if prompt is a standard Logic Gate request (AND, OR, XOR, NAND, NOR, NOT, XNOR, BUFFER)
-    preset = get_logic_gate_preset(data.prompt) or get_logic_gate_preset(data.project_name)
+    preset = get_logic_gate_preset(data.prompt)
 
     if preset:
         plc_json = preset
