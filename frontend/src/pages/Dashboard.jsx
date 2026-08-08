@@ -6,7 +6,7 @@ import Navbar from "../components/Navbar";
 import LadderDiagram from "../components/LadderDiagram";
 import { generate, getProjects, explainRungs, deleteProject } from "../api/client";
 import LadderLogo from "../components/LadderLogo";
-import { Trash2, Loader2, AlertTriangle, CheckCircle2, RotateCcw, Printer, Plus, Sparkles, X, Menu, Cpu, Send, Layers, Clock, Bot } from "lucide-react";
+import { Trash2, Loader2, AlertTriangle, CheckCircle2, RotateCcw, Printer, Plus, Sparkles, X, Menu, Cpu, Send, Layers, Clock, Bot, Search } from "lucide-react";
 
 export default function Dashboard() {
   const { C, isDark } = useTheme();
@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [showGen, setShowGen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [projectName, setProjectName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
@@ -122,46 +123,99 @@ export default function Dashboard() {
         {/* REPOSITORY SIDEBAR */}
         <aside style={S.sidebar} className="no-print">
           <div style={S.sidebarHeader}>
-            <span style={S.sidebarTitle}>MY PROJECTS</span>
-            <button onClick={() => setSidebarOpen(false)} style={S.closeSidebarBtn}><X size={12} /> CLOSE</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={S.sidebarTitle}>MY PROJECTS</span>
+              <span style={{ background: `${C.brandPrimary}22`, color: C.brandPrimary, padding: "2px 8px", borderRadius: 12, fontSize: 10, fontWeight: 900 }}>
+                {projects.length}
+              </span>
+            </div>
+            <button onClick={() => setSidebarOpen(false)} style={S.closeSidebarBtn} title="Collapse Sidebar">
+              <X size={14} />
+            </button>
           </div>
+
           <div style={S.sidebarContent}>
-            <button onClick={() => { setProject(null); setProjectName(""); setPrompt(""); }} style={{ ...S.newBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <button 
+              onClick={() => { setProject(null); setProjectName(""); setPrompt(""); }} 
+              style={{ ...S.newBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            >
               <Plus size={16} /> START NEW DESIGN
             </button>
+
+            {/* SEARCH & FILTER BAR */}
+            <div style={S.searchWrap}>
+              <Search size={14} color={C.textMuted || "#888"} style={{ flexShrink: 0 }} />
+              <input 
+                type="text" 
+                placeholder="Search projects..." 
+                value={searchQuery} 
+                onChange={(e) => setSearchQuery(e.target.value)} 
+                style={S.searchInput} 
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} style={S.clearSearchBtn}>
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
             <div style={S.projectList}>
-              {fetching ? <div style={S.statusText}>Syncing...</div> : projects.length === 0 ? <div style={S.statusText}>No deposits.</div> : (
-                projects.map(p => (
-                  <div key={p._id} onClick={() => setProject({ ...p, project_id: p._id, plc_logic: p.plc_logic || { rungs: [] } })} style={currentProject?._id === p._id ? S.projectCardActive : S.projectCard}>
-                    <div style={S.projectIcon}><Cpu size={15} color={C.brandPrimary} /></div>
-                    <div style={S.projectInfo}><span style={S.pName}>{p.project_name}</span><span style={S.pPrompt}>{p.prompt}</span></div>
-                    <button 
-                      onClick={(e) => openDeleteConfirm(e, p)} 
-                      title="Delete Project"
-                      disabled={deletingId === p._id}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: C.textMuted || "#888",
-                        cursor: "pointer",
-                        padding: "6px",
-                        borderRadius: "8px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        transition: "all 0.2s"
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.background = "rgba(239, 68, 68, 0.15)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.color = C.textMuted || "#888"; e.currentTarget.style.background = "none"; }}
-                    >
-                      {deletingId === p._id ? (
-                        <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-                      ) : (
-                        <Trash2 size={14} />
-                      )}
-                    </button>
-                  </div>
-                ))
+              {fetching ? (
+                <div style={S.statusText}>Syncing projects...</div>
+              ) : projects.length === 0 ? (
+                <div style={S.statusText}>No projects found.</div>
+              ) : (
+                projects
+                  .filter(p => 
+                    (p.project_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (p.prompt || "").toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .map(p => {
+                    const isActive = currentProject?._id === p._id || currentProject?.project_id === p._id;
+                    return (
+                      <div 
+                        key={p._id} 
+                        onClick={() => setProject({ ...p, project_id: p._id, plc_logic: p.plc_logic || { rungs: [] } })} 
+                        style={isActive ? S.projectCardActive : S.projectCard}
+                      >
+                        <div style={{ ...S.projectIcon, background: isActive ? `${C.brandPrimary}25` : C.bgInput }}>
+                          <Cpu size={15} color={isActive ? C.brandPrimary : (C.textMuted || "#888")} />
+                        </div>
+                        <div style={S.projectInfo}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ ...S.pName, color: isActive ? C.brandPrimary : C.textPrimary }}>{p.project_name}</span>
+                            {isActive && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }} />}
+                          </div>
+                          <span style={S.pPrompt}>{p.prompt}</span>
+                        </div>
+                        <button 
+                          onClick={(e) => openDeleteConfirm(e, p)} 
+                          title="Delete Project"
+                          disabled={deletingId === p._id}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: C.textMuted || "#888",
+                            cursor: "pointer",
+                            padding: "6px",
+                            borderRadius: "8px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "all 0.2s"
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.background = "rgba(239, 68, 68, 0.15)"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = C.textMuted || "#888"; e.currentTarget.style.background = "none"; }}
+                        >
+                          {deletingId === p._id ? (
+                            <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                          ) : (
+                            <Trash2 size={14} />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })
               )}
             </div>
           </div>
@@ -642,18 +696,23 @@ function makeStyles(C, sidebarOpen, showGen, width, isDark) {
       transform: isMobile && !sidebarOpen ? "translateX(-100%)" : "none",
       overflow: "hidden", zIndex: 2000, boxShadow: isMobile && sidebarOpen ? "20px 0 60px rgba(0,0,0,0.4)" : "none"
     },
-    sidebarHeader: { padding: "24px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.borderCard}`, minWidth: 300 },
-    sidebarTitle: { fontSize: 11, fontWeight: 900, color: C.textMuted, letterSpacing: "0.2em" },
-    closeSidebarBtn: { background: "none", border: `1px solid ${C.borderDefault}`, padding: "6px 12px", borderRadius: 8, color: C.textMuted, cursor: "pointer", fontSize: 10, fontWeight: 800 },
+    sidebarHeader: { padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.borderCard}`, minWidth: 300 },
+    sidebarTitle: { fontSize: 11, fontWeight: 900, color: C.textMuted, letterSpacing: "0.15em" },
+    closeSidebarBtn: { background: C.bgInput, border: `1px solid ${C.borderDefault}`, width: 28, height: 28, borderRadius: 8, color: C.textMuted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
     sidebarBackdrop: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", zIndex: 1900 },
-    sidebarContent: { flex: 1, padding: 20, overflowY: "auto", minWidth: 300 },
-    newBtn: { background: C.brandPrimary, color: "#fff", border: "none", padding: "14px", borderRadius: 14, fontWeight: 800, cursor: "pointer", marginBottom: 24, fontSize: 13, width: "100%" },
-    projectList: { display: "flex", flexDirection: "column", gap: 10 },
-    projectCard: { padding: "14px", borderRadius: 16, cursor: "pointer", display: "flex", gap: 14, alignItems: "center", border: "1px solid transparent" },
-    projectCardActive: { padding: "14px", borderRadius: 16, background: `${C.brandPrimary}12`, border: `1px solid ${C.brandPrimary}33`, display: "flex", gap: 14, alignItems: "center" },
-    projectIcon: { width: 32, height: 32, borderRadius: 8, background: C.bgInput, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 },
+    sidebarContent: { flex: 1, padding: "16px", overflowY: "auto", minWidth: 300, display: "flex", flexDirection: "column", gap: 16 },
+    newBtn: { background: `linear-gradient(135deg, ${C.brandPrimary} 0%, #ea580c 100%)`, color: "#fff", border: "none", padding: "12px 16px", borderRadius: 14, fontWeight: 900, cursor: "pointer", fontSize: 12, width: "100%", boxShadow: `0 4px 14px ${C.brandPrimary}33` },
+    
+    searchWrap: { display: "flex", alignItems: "center", gap: 8, background: C.bgInput, border: `1px solid ${C.borderDefault}`, borderRadius: 12, padding: "8px 12px" },
+    searchInput: { flex: 1, background: "transparent", border: "none", outline: "none", color: C.textPrimary, fontSize: 12, fontWeight: 500 },
+    clearSearchBtn: { background: "none", border: "none", color: C.textMuted, cursor: "pointer", padding: 2, display: "flex", alignItems: "center" },
+
+    projectList: { display: "flex", flexDirection: "column", gap: 8 },
+    projectCard: { padding: "12px 14px", borderRadius: 14, cursor: "pointer", display: "flex", gap: 12, alignItems: "center", border: `1px solid transparent`, transition: "all 0.2s" },
+    projectCardActive: { padding: "12px 14px", borderRadius: 14, background: `${C.brandPrimary}15`, border: `1px solid ${C.brandPrimary}44`, borderLeft: `4px solid ${C.brandPrimary}`, display: "flex", gap: 12, alignItems: "center", boxShadow: `0 4px 12px ${C.brandPrimary}15` },
+    projectIcon: { width: 32, height: 32, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
     projectInfo: { flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", gap: 2 },
-    pName: { fontSize: 14, fontWeight: 800, color: C.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+    pName: { fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
     pPrompt: { fontSize: 11, color: C.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
     statusText: { textAlign: "center", padding: 40, color: C.textMuted, fontSize: 12 },
 

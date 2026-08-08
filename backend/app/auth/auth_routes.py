@@ -79,6 +79,7 @@ def login(data: UserLogin):
 
     refresh_token = create_refresh_token({
         "user_id": str(user["_id"]),
+        "role": user.get("role", "user"),
         "type": "refresh"
     })
 
@@ -109,6 +110,7 @@ async def google_login(request: Request):
 
     refresh_token = create_refresh_token({
         "user_id": str(user["_id"]),
+        "role": user.get("role", "user"),
         "type": "refresh"
     })
 
@@ -171,11 +173,24 @@ def reset_password(data: ResetPasswordRequest):
 def refresh_token(data: RefreshTokenRequest):
     payload = verify_token(data.refresh_token)
 
-    if not payload:
+    if not payload or payload.get("error"):
         raise HTTPException(401, "Invalid refresh token")
 
+    user_id = payload.get("user_id")
+    role = payload.get("role")
+
+    if not role and user_id:
+        try:
+            from bson import ObjectId
+            db_user = users_collection.find_one({"_id": ObjectId(user_id)})
+            if db_user:
+                role = db_user.get("role", "user")
+        except Exception:
+            pass
+
     new_access = create_token({
-        "user_id": payload["user_id"]
+        "user_id": user_id,
+        "role": role or "user"
     })
 
     return {"access_token": new_access}

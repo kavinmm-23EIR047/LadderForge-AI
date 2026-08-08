@@ -168,7 +168,7 @@ export default function Navbar() {
 function makeStyles(C, mobileOpen, isMobile) {
   return {
     nav: { position: "sticky", top: 0, left: 0, right: 0, zIndex: 1100, background: `${C.bgCard}cc`, borderBottom: `1px solid ${C.borderCard}`, backdropFilter: "blur(12px)", transition: "all 0.3s ease" },
-    container: { maxWidth: 1400, margin: "0 auto", padding: isMobile ? "10px 16px" : "12px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" },
+    container: { width: "100%", maxWidth: "100%", padding: isMobile ? "10px 16px" : "12px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" },
 
     logoWrap: { display: "flex", alignItems: "center", gap: 10, cursor: "pointer", background: "none", border: "none", padding: 0 },
     logoBox: { width: 34, height: 34, background: C.brandPrimary, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, fontSize: 13, fontWeight: 900, boxShadow: `0 4px 12px ${C.brandPrimary}33` },

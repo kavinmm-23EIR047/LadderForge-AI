@@ -149,19 +149,20 @@ function makeStyles(C = {}, isDark = false) {
     footer: {
       background: isDark ? "#080401" : safe(C.bgCard, "#111"),
       borderTop: border,
-      padding: "50px 20px 30px",
+      padding: "50px 30px 30px",
       marginTop: "auto",
       position: "relative",
+      width: "100%",
     },
 
     container: {
-      maxWidth: 1100,
-      margin: "0 auto",
+      width: "100%",
+      maxWidth: "100%",
       display: "flex",
       flexWrap: "wrap",
       justifyContent: "space-between",
       gap: 40,
-      marginBottom: 50,
+      marginBottom: 40,
     },
 
     brandSection: {
@@ -217,8 +218,8 @@ function makeStyles(C = {}, isDark = false) {
     },
 
     bottom: {
-      maxWidth: 1100,
-      margin: "0 auto",
+      width: "100%",
+      maxWidth: "100%",
       paddingTop: 24,
       borderTop: border,
     },
