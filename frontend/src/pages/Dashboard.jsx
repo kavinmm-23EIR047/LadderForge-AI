@@ -6,7 +6,7 @@ import Navbar from "../components/Navbar";
 import LadderDiagram from "../components/LadderDiagram";
 import { generate, getProjects, explainRungs, deleteProject } from "../api/client";
 import LadderLogo from "../components/LadderLogo";
-import { Trash2, Loader2, AlertTriangle, CheckCircle2, RotateCcw, Printer, Plus, Sparkles, X, Menu, Cpu } from "lucide-react";
+import { Trash2, Loader2, AlertTriangle, CheckCircle2, RotateCcw, Printer, Plus, Sparkles, X, Menu, Cpu, Send, Layers, Clock, Bot } from "lucide-react";
 
 export default function Dashboard() {
   const { C, isDark } = useTheme();
@@ -66,11 +66,24 @@ export default function Dashboard() {
     finally { setLoading(false); }
   };
 
+  const handleGenerateWithValues = async (pName, pPrompt) => {
+    const targetName = pName || projectName;
+    const targetPrompt = pPrompt || prompt;
+    if (!targetName.trim() || !targetPrompt.trim()) return setErr("Please fill all fields");
+    setLoading(true); setErr("");
+    try {
+      const res = await generate({ prompt: targetPrompt, project_name: targetName, user_id: user.user_id });
+      setProject({ ...res.data, project_name: targetName, prompt: targetPrompt });
+      setShowGen(false); setPrompt(""); setProjectName(""); loadProjects();
+    } catch (e) { setErr(e.response?.data?.detail || "Generation failed"); }
+    finally { setLoading(false); }
+  };
+
   const handleRegenerate = () => {
     if (currentProject) {
       setProjectName(currentProject.project_name);
       setPrompt(currentProject.prompt || "");
-      setShowGen(true);
+      setProject(null);
     }
   };
 
@@ -113,7 +126,7 @@ export default function Dashboard() {
             <button onClick={() => setSidebarOpen(false)} style={S.closeSidebarBtn}><X size={12} /> CLOSE</button>
           </div>
           <div style={S.sidebarContent}>
-            <button onClick={() => setShowGen(true)} style={{ ...S.newBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <button onClick={() => { setProject(null); setProjectName(""); setPrompt(""); }} style={{ ...S.newBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <Plus size={16} /> START NEW DESIGN
             </button>
             <div style={S.projectList}>
@@ -171,13 +184,15 @@ export default function Dashboard() {
              </div>
              <div style={S.headerRight}>
                 {currentProject && (
-                  <button onClick={handleRegenerate} style={S.actionBtnSecondary}>
-                    <RotateCcw size={14} /> REGENERATE
-                  </button>
+                  <>
+                    <button onClick={handleRegenerate} style={S.actionBtnSecondary}>
+                      <RotateCcw size={14} /> REGENERATE
+                    </button>
+                    <button onClick={() => window.print()} style={S.actionBtnPrimary}>
+                      <Printer size={14} /> EXPORT PDF
+                    </button>
+                  </>
                 )}
-                <button onClick={() => window.print()} style={S.actionBtnPrimary}>
-                  <Printer size={14} /> EXPORT PDF
-                </button>
              </div>
           </header>
 
@@ -401,55 +416,153 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
-               </div>
-             ) : (
-               <div style={S.emptyState}>
-                 <div style={S.emptyCircle}><LadderLogo style={{ width: 50, height: 50 }} /></div>
-                 <h3>Select a project to simulate</h3>
-                 <button onClick={() => setSidebarOpen(true)} style={S.emptyBtn}>
-                   SELECT PROJECT
-                 </button>
-               </div>
-             )}
+                </div>
+              ) : (
+                <div style={{ flex: 1, padding: isMobile ? "20px 15px" : "40px 60px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", maxWidth: 1100, margin: "0 auto", width: "100%", overflowY: "auto" }}>
+                  
+                  {/* HERO TITLE SECTION */}
+                  <div style={{ textAlign: "center", marginBottom: 35, position: "relative", width: "100%" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: `${C.brandPrimary}15`, border: `1px solid ${C.brandPrimary}33`, padding: "6px 14px", borderRadius: 30, fontSize: 11, fontWeight: 800, color: C.brandPrimary, marginBottom: 16 }}>
+                      <Sparkles size={13} />
+                      <span>LADDERFORGE AI ENGINE v2.6</span>
+                    </div>
+                    
+                    <h1 style={{ fontSize: isMobile ? 24 : 36, fontWeight: 900, color: C.textPrimary, margin: "0 0 12px 0", letterSpacing: "-0.02em" }}>
+                      Hi <span style={{ color: C.brandPrimary }}>{(user?.name || "Engineer").split(" ")[0]}</span>, Ready to Synthesize PLC Logic?
+                    </h1>
+                    <p style={{ fontSize: 14, color: C.textMuted, maxWidth: 600, margin: "0 auto", lineHeight: 1.6 }}>
+                      Describe your automation sequence in natural language and generate textbook IEC 61131-3 ladder logic instantly.
+                    </p>
+                  </div>
+
+                  {/* 3 PRESET QUICK-START CARDS (REFERENCED DESIGN) */}
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 20, width: "100%", marginBottom: 35 }}>
+                    
+                    {/* CARD 1 */}
+                    <div 
+                      onClick={() => { setProjectName("XOR GATE LOGIC"); setPrompt("make a xor gate"); handleGenerateWithValues("XOR GATE LOGIC", "make a xor gate"); }}
+                      style={{ background: C.bgCard, border: `1px solid ${C.borderCard}`, borderRadius: 20, padding: 24, cursor: "pointer", transition: "all 0.3s ease", boxShadow: "0 10px 30px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", justifyContent: "space-between", height: 180 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.borderColor = C.brandPrimary; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = C.borderCard; }}
+                    >
+                      <div>
+                        <div style={{ width: 42, height: 42, borderRadius: 12, background: `${C.brandPrimary}15`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                          <Cpu size={22} color={C.brandPrimary} />
+                        </div>
+                        <h3 style={{ fontSize: 15, fontWeight: 800, color: C.textPrimary, margin: "0 0 6px 0" }}>Elementary Logic Gates</h3>
+                        <p style={{ fontSize: 12, color: C.textMuted, margin: 0, lineHeight: 1.5 }}>Synthesize XOR, AND, OR, NAND, NOR, or NOT 2-rung gate logic.</p>
+                      </div>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: C.brandPrimary, textTransform: "uppercase", letterSpacing: "0.05em" }}>⚡ Fast Start • 0ms Preset</div>
+                    </div>
+
+                    {/* CARD 2 */}
+                    <div 
+                      onClick={() => { setProjectName("MOTOR STAR-DELTA"); setPrompt("Motor star delta starter with emergency stop and overload trip"); handleGenerateWithValues("MOTOR STAR-DELTA", "Motor star delta starter with emergency stop and overload trip"); }}
+                      style={{ background: C.bgCard, border: `1px solid ${C.borderCard}`, borderRadius: 20, padding: 24, cursor: "pointer", transition: "all 0.3s ease", boxShadow: "0 10px 30px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", justifyContent: "space-between", height: 180 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.borderColor = "#6366f1"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = C.borderCard; }}
+                    >
+                      <div>
+                        <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(99, 102, 241, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                          <Layers size={22} color="#6366f1" />
+                        </div>
+                        <h3 style={{ fontSize: 15, fontWeight: 800, color: C.textPrimary, margin: "0 0 6px 0" }}>Motor Control & Interlocks</h3>
+                        <p style={{ fontSize: 12, color: C.textMuted, margin: 0, lineHeight: 1.5 }}>3-Phase motor starter, conveyor belt sequence & safety stops.</p>
+                      </div>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.05em" }}>⚙️ Process Control</div>
+                    </div>
+
+                    {/* CARD 3 */}
+                    <div 
+                      onClick={() => { setProjectName("TIMER DELAY ALARM"); setPrompt("5 second TON timer delay with alarm output"); handleGenerateWithValues("TIMER DELAY ALARM", "5 second TON timer delay with alarm output"); }}
+                      style={{ background: C.bgCard, border: `1px solid ${C.borderCard}`, borderRadius: 20, padding: 24, cursor: "pointer", transition: "all 0.3s ease", boxShadow: "0 10px 30px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", justifyContent: "space-between", height: 180 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.borderColor = "#22c55e"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = C.borderCard; }}
+                    >
+                      <div>
+                        <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(34, 197, 94, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                          <Clock size={22} color="#22c55e" />
+                        </div>
+                        <h3 style={{ fontSize: 15, fontWeight: 800, color: C.textPrimary, margin: "0 0 6px 0" }}>Timers & Alarm Logic</h3>
+                        <p style={{ fontSize: 12, color: C.textMuted, margin: 0, lineHeight: 1.5 }}>TON delay-on timers, counters & high-priority alarm outputs.</p>
+                      </div>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: "#22c55e", textTransform: "uppercase", letterSpacing: "0.05em" }}>⏱️ IEC 61131-3 Timers</div>
+                    </div>
+                  </div>
+
+                  {/* NIXTIO STYLE FLOATING PROMPT DOCK */}
+                  <div style={{ width: "100%", background: C.bgCard, border: `1.5px solid ${C.borderCard}`, borderRadius: 24, padding: 18, boxShadow: "0 20px 50px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column", gap: 14 }}>
+                    
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 10, fontWeight: 800, color: C.textMuted }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <Sparkles size={12} color={C.brandPrimary} />
+                        <span>PROMPT ASSISTANT</span>
+                      </div>
+                      <div>POWERED BY GROQ LLAMA 3 70B</div>
+                    </div>
+
+                    {/* INPUT CONTAINER */}
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", background: C.bgInput, border: `1px solid ${C.borderDefault}`, borderRadius: 16, padding: "8px 12px", flexDirection: isMobile ? "column" : "row" }}>
+                      <input 
+                        type="text" 
+                        placeholder="System Identifier (e.g. Pump Control)..."
+                        value={projectName}
+                        onChange={(e) => setProjectName(e.target.value)}
+                        style={{ width: isMobile ? "100%" : 180, background: "transparent", border: "none", outline: "none", color: C.textPrimary, fontSize: 12, fontWeight: 700, borderRight: isMobile ? "none" : `1px solid ${C.borderDefault}`, paddingRight: 10 }}
+                      />
+                      <input 
+                        type="text" 
+                        placeholder='Describe sequence, e.g. "make a xor gate" or "conveyor belt sensor"...'
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleGenerate(); }}
+                        style={{ flex: 1, width: isMobile ? "100%" : "auto", background: "transparent", border: "none", outline: "none", color: C.textPrimary, fontSize: 13, fontWeight: 500 }}
+                      />
+                      <button 
+                        onClick={handleGenerate} 
+                        disabled={loading}
+                        style={{ background: C.brandPrimary, color: "#fff", border: "none", borderRadius: 12, padding: "10px 22px", fontWeight: 900, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: `0 4px 14px ${C.brandPrimary}44`, width: isMobile ? "100%" : "auto", justifyContent: "center" }}
+                      >
+                        {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={15} />}
+                        <span>{loading ? "SYNTHESIZING..." : "SYNTHESIZE"}</span>
+                      </button>
+                    </div>
+
+                    {/* FILTER CHIPS */}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {[
+                        { label: "💡 XOR Gate", p: "make a xor gate", name: "XOR GATE" },
+                        { label: "⚙️ Motor Starter", p: "Motor star delta starter with emergency stop", name: "MOTOR STARTER" },
+                        { label: "⏱️ 5s TON Timer", p: "5 second TON timer delay with alarm output", name: "TIMER DELAY" },
+                        { label: "🛡️ Safety Interlock", p: "Dual hand safety interlock with emergency trip", name: "SAFETY INTERLOCK" },
+                      ].map((chip, i) => (
+                        <button
+                          key={i}
+                          onClick={() => { setProjectName(chip.name); setPrompt(chip.p); handleGenerateWithValues(chip.name, chip.p); }}
+                          style={{ background: C.bgInput, border: `1px solid ${C.borderDefault}`, borderRadius: 30, padding: "6px 14px", fontSize: 11, fontWeight: 700, color: C.textSecondary, cursor: "pointer", transition: "all 0.2s" }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.brandPrimary; e.currentTarget.style.color = C.brandPrimary; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.borderDefault; e.currentTarget.style.color = C.textSecondary; }}
+                        >
+                          {chip.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
           </div>
 
-          {!showGen && (
-            <div style={S.aiCommandContainer} className="no-print" onClick={() => setShowGen(true)}>
+          {currentProject && (
+            <div style={S.aiCommandContainer} className="no-print" onClick={() => { setProject(null); setProjectName(""); setPrompt(""); }}>
                <div style={S.aiCommandBar}>
                   <div style={S.aiBorderGlow} />
                   <div style={S.aiSparkleBox}><Sparkles size={18} color="#fff" /></div>
-                  <span style={S.aiCommandText}>AI GENERATOR</span>
+                  <span style={S.aiCommandText}>AI GENERATOR STUDIO</span>
                </div>
             </div>
           )}
         </main>
       </div>
-
-      {showGen && (
-        <div style={S.modalOverlay} className="no-print">
-          <div style={S.modalCard}>
-            <div style={S.modalHeader}>
-               <h3>Generate PLC Logic</h3>
-               <button onClick={() => setShowGen(false)} style={S.closeBtn}><X size={18} /></button>
-            </div>
-            <div style={S.modalBody}>
-              <div style={S.inputField}>
-                <label style={S.fieldLabel}>SYSTEM IDENTIFIER</label>
-                <input placeholder="Project name..." value={projectName} onChange={e => setProjectName(e.target.value)} style={S.modalInput} />
-              </div>
-              <div style={S.inputField}>
-                <label style={S.fieldLabel}>SEQUENCE DESCRIPTION</label>
-                <textarea rows={6} placeholder="Describe pump sequences, interlocks, etc..." value={prompt} onChange={e => setPrompt(e.target.value)} style={S.modalTextarea} />
-              </div>
-              {err && <div style={{ color: C.brandPrimary, fontSize: 12 }}>{err}</div>}
-            </div>
-            <div style={S.modalFooter}>
-              <button onClick={() => setShowGen(false)} style={S.cancelBtn}>CANCEL</button>
-              <button onClick={handleGenerate} disabled={loading} style={S.generateBtn}>{loading ? "SYNTHESIZING..." : "START GENERATION"}</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {deleteTarget && (
         <div style={S.modalOverlay} className="no-print">
