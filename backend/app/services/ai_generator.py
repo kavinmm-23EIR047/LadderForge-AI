@@ -57,8 +57,8 @@ INSTRUCTION REFERENCE & TAG NAMING RULES
 LOGIC GATE & CONTROL SYSTEM DESIGN EXAMPLES
 ══════════════════════════════════════════════════════════════════════
 
-• 1. Two Switches & Two Motors (Interlocked Control System):
-  Rung 1: Contact (NO, "S1"), Contact (NC, "M2"), Coil (OTE, "M1")
+• 1. Two Switches & Two Motors (Interlocked Control System, M1 Priority when both ON):
+  Rung 1: Contact (NO, "S1"), Coil (OTE, "M1")
   Rung 2: Contact (NO, "S2"), Contact (NC, "S1"), Contact (NC, "M1"), Coil (OTE, "M2")
 
 • 2. AND Gate (Explicit logic gate prompt only):
