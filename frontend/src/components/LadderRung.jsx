@@ -14,15 +14,19 @@ const InstructionWrapper = ({ children, active, tag, label, width = 60, height =
   const colorInactive = isDark ? "#404040" : "#cbd5e1"; 
   const color = active ? COLOR_ACTIVE : colorInactive;
   const glow = active ? GLOW_ACTIVE : "none";
-  const textColor = active ? COLOR_ACTIVE : (isDark ? "#737373" : "#64748b");
+  const textColor = active ? COLOR_ACTIVE : (isDark ? "#a3a3a3" : "#475569");
   const bgColor = isDark ? "#0c0a09" : "#ffffff"; 
+
+  // Dynamically scale component wrapper width so tag names NEVER overlap neighbor elements
+  const tagLen = tag ? String(tag).length : 4;
+  const minRequiredWidth = Math.max(width, tagLen * 8 + 24);
 
   return (
     <div 
       onClick={(e) => { e.stopPropagation(); onClick?.(); }}
       style={{ 
         position: "relative", 
-        width, 
+        width: minRequiredWidth, 
         height: RUNG_HEIGHT - 60, 
         display: "flex", 
         alignItems: "center", 
@@ -31,22 +35,26 @@ const InstructionWrapper = ({ children, active, tag, label, width = 60, height =
         cursor: onClick ? "pointer" : "default"
       }}
     >
-      {/* Tag Label */}
+      {/* Tag Label Chip */}
       <div style={{
         position: "absolute",
-        bottom: "85%",
+        bottom: "82%",
         fontSize: 10,
         fontWeight: 900,
         color: textColor,
         whiteSpace: "nowrap",
         fontFamily: "'JetBrains Mono', monospace",
         textAlign: "center",
-        background: active ? `${COLOR_ACTIVE}15` : 'transparent',
-        padding: '2px 4px',
-        borderRadius: 4,
+        background: active ? `${COLOR_ACTIVE}20` : (isDark ? "#1c1917" : "#f8fafc"),
+        border: `1px solid ${active ? COLOR_ACTIVE : (isDark ? "#333333" : "#e2e8f0")}`,
+        padding: '2px 8px',
+        borderRadius: 6,
         display: "flex",
         alignItems: "center",
-        gap: 4
+        justifyContent: "center",
+        maxWidth: "100%",
+        boxSizing: "border-box",
+        zIndex: 5
       }}>
         <input 
           value={tag} 
@@ -55,13 +63,12 @@ const InstructionWrapper = ({ children, active, tag, label, width = 60, height =
           style={{
             background: "none",
             border: "none",
-            borderBottom: active ? `1px solid ${COLOR_ACTIVE}` : "1px solid transparent",
             color: "inherit",
             fontSize: "inherit",
             fontWeight: "inherit",
             fontFamily: "inherit",
             textAlign: "center",
-            width: Math.max(40, tag.length * 7),
+            width: "100%",
             outline: "none",
             padding: 0
           }}
@@ -69,13 +76,14 @@ const InstructionWrapper = ({ children, active, tag, label, width = 60, height =
       </div>
 
       {/* Main Connection Wire */}
-      <div style={{ position: "absolute", width: "100%", height: WIRE_THICKNESS, background: color, boxShadow: glow, zIndex: 1, transition: 'all 0.1s' }} />
+      <div className="instruction-wire" style={{ position: "absolute", width: "100%", height: WIRE_THICKNESS, background: color, boxShadow: glow, zIndex: 1, transition: 'all 0.1s' }} />
 
       {/* Symbol Component */}
       <div style={{ 
         position: "relative", 
         zIndex: 2, 
         background: bgColor,
+        padding: "0 2px",
         animation: active ? "symbolPulse 0.5s infinite alternate ease-in-out" : "none"
       }}>
         {children}
@@ -188,6 +196,7 @@ export default function LadderRung({
   return (
     <div 
       onClick={onSelect}
+      className="rung-row-card"
       style={{
         background: bgColor,
         minHeight: RUNG_HEIGHT,
@@ -203,7 +212,7 @@ export default function LadderRung({
     >
       {/* Rung Number Highlight Box */}
       <div style={{ width: 35, height: "100%", display: "flex", alignItems: "center", justifyContent: "center", borderRight: `2px solid ${isDark ? "#1c1917" : "#f1f5f9"}`, flexShrink: 0 }}>
-        <div style={{ 
+        <div className="rung-num-badge" style={{ 
           background: selected || active ? COLOR_ACTIVE : (isDark ? "#262626" : "#e2e8f0"), 
           color: selected || active ? "#fff" : (isDark ? "#888" : "#64748b"), 
           width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", 
@@ -214,11 +223,11 @@ export default function LadderRung({
         </div>
       </div>
 
-      <div style={{ flex: 1, position: "relative", height: "100%", padding: "0 60px", display: "flex", alignItems: "center" }}>
+      <div className="rung-inner-wrap" style={{ flex: 1, position: "relative", height: "100%", padding: "0 60px", display: "flex", alignItems: "center" }}>
         {/* The Rung Rail Wire */}
-        <div style={{ position: "absolute", left: 0, right: 0, height: WIRE_THICKNESS, background: lc, boxShadow: glow, zIndex: 1 }} />
-        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: RAIL_W, background: isDark ? "#292524" : "#e2e8f0" }} />
-        <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: RAIL_W, background: isDark ? "#292524" : "#e2e8f0" }} />
+        <div className="rung-wire-line" style={{ position: "absolute", left: 0, right: 0, height: WIRE_THICKNESS, background: lc, boxShadow: glow, zIndex: 1 }} />
+        <div className="power-rail-left" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 6, background: isDark ? "#525252" : "#64748b" }} />
+        <div className="power-rail-right" style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 6, background: isDark ? "#525252" : "#64748b" }} />
 
         <div style={{ zIndex: 2, display: "flex", width: "100%", alignItems: "center" }}>
           
@@ -233,9 +242,9 @@ export default function LadderRung({
                       onClick={(e) => { e.stopPropagation(); onUpdateInstruction(inst.id, { mode: inst.mode === "NO" ? "NC" : "NO" }); }}
                       style={{ position: "relative", width: 22, height: 40, background: bgColor, display: "flex", justifyContent: "space-between", padding: '0 2px', cursor: "pointer" }}
                     >
-                      <div style={{ width: 5, height: "100%", background: color, borderRadius: 1 }} />
-                      {inst.mode === "NC" && <div style={{ position: "absolute", width: 5, height: "135%", background: color, top: "-17%", left: "40%", transform: "rotate(-35deg)", borderRadius: 1 }} />}
-                      <div style={{ width: 5, height: "100%", background: color, borderRadius: 1 }} />
+                      <div className="contact-bar" style={{ width: 5, height: "100%", background: color, borderRadius: 1 }} />
+                      {inst.mode === "NC" && <div className="contact-bar-nc" style={{ position: "absolute", width: 5, height: "135%", background: color, top: "-17%", left: "40%", transform: "rotate(-35deg)", borderRadius: 1 }} />}
+                      <div className="contact-bar" style={{ width: 5, height: "100%", background: color, borderRadius: 1 }} />
                     </div>
                   </InstructionWrapper>
                 );
@@ -260,7 +269,7 @@ export default function LadderRung({
               if (inst.type === "coil") {
                 return (
                   <InstructionWrapper key={idx} active={energized} tag={inst.tag} label={getLabel(inst.tag)} isOutput isDark={isDark}>
-                    <div style={{ width: 38, height: 38, border: `4px solid ${lc}`, borderRadius: "50%", background: bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="coil-circle" style={{ width: 38, height: 38, border: `4px solid ${lc}`, borderRadius: "50%", background: bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                        {inst.mode === "OTL" && <span style={{ fontSize: 14, fontWeight:900, color: lc }}>L</span>}
                        {inst.mode === "OTU" && <span style={{ fontSize: 14, fontWeight:900, color: lc }}>U</span>}
                     </div>
@@ -307,7 +316,7 @@ export default function LadderRung({
       </div>
 
       {active && (
-        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, transparent, ${COLOR_ACTIVE}1a, transparent)`, pointerEvents: "none", animation: "scanLine 2s linear infinite" }} />
+        <div className="no-print" style={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, transparent, ${COLOR_ACTIVE}1a, transparent)`, pointerEvents: "none", animation: "scanLine 2s linear infinite" }} />
       )}
 
       <style>{`

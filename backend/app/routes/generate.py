@@ -122,7 +122,8 @@ from app.services.plc_parser import (
     fix_latch_pairs,
     fix_timer,
     fix_order,
-    remove_duplicate_rungs
+    remove_duplicate_rungs,
+    get_logic_gate_preset
 )
 from app.config.database import projects_collection
 
@@ -255,20 +256,26 @@ def validate_plc(plc_json: dict) -> list[str]:
 @router.post("/generate")
 def generate_logic(data: PromptRequest):
 
-    # STEP 1: Generate raw PLC JSON from AI
-    plc_json = generate_plc_json(data.prompt)
+    # STEP 1: Check if prompt is a standard Logic Gate request (AND, OR, XOR, NAND, NOR, NOT, XNOR, BUFFER)
+    preset = get_logic_gate_preset(data.prompt) or get_logic_gate_preset(data.project_name)
+
+    if preset:
+        plc_json = preset
+    else:
+        plc_json = generate_plc_json(data.prompt)
 
     if not plc_json:
         from fastapi import HTTPException
         raise HTTPException(status_code=503, detail="AI generation failed. Please check GROQ_API_KEY and Try again later.")
 
     # STEP 2: CLEAN PIPELINE (order matters)
-    plc_json = fix_ai_format(plc_json)          # standardize shapes, normalize latch/unlatch/set/reset
-    plc_json = remove_invalid(plc_json)          # drop AND / OR / empty-type instructions
-    plc_json = fix_latch_pairs(plc_json)         # log unmatched OTL / OTU pairs
-    plc_json = fix_timer(plc_json)               # normalize timers + inject done-contact into next rung
-    plc_json = fix_order(plc_json)               # sort: contacts → compares → timers → counters → output
-    plc_json = remove_duplicate_rungs(plc_json)  # deduplicate identical rungs
+    if not preset:
+        plc_json = fix_ai_format(plc_json)          # standardize shapes, normalize latch/unlatch/set/reset
+        plc_json = remove_invalid(plc_json)          # drop AND / OR / empty-type instructions
+        plc_json = fix_latch_pairs(plc_json)         # log unmatched OTL / OTU pairs
+        plc_json = fix_timer(plc_json)               # normalize timers + inject done-contact into next rung
+        plc_json = fix_order(plc_json)               # sort: contacts → compares → timers → counters → output
+        plc_json = remove_duplicate_rungs(plc_json)  # deduplicate identical rungs
 
     # ALWAYS KEEP NORMALIZE LAST
     plc_json = normalize_plc(plc_json)           # assign rung_id / instruction ids

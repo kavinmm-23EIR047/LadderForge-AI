@@ -3,6 +3,7 @@ import { useTheme } from "../hooks/useTheme";
 import LadderLogo from "./LadderLogo";
 import useStore from "../store/useStore";
 import { useNavigate } from "react-router-dom";
+import { X } from "lucide-react";
 // forced HMR reload
 
 export default function Footer() {
@@ -53,7 +54,7 @@ export default function Footer() {
   };
 
   return (
-    <footer style={S.footer}>
+    <footer style={S.footer} className="no-print">
       <div style={S.container}>
         <div style={S.brandSection}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 15 }}>
@@ -117,7 +118,7 @@ export default function Footer() {
       {legalModalOpen && (
         <div style={S.modalOverlay} onClick={() => setLegalModalOpen(false)}>
           <div style={S.modalCard} onClick={e => e.stopPropagation()}>
-            <button style={S.closeModal} onClick={() => setLegalModalOpen(false)}>✕</button>
+            <button style={S.closeModal} onClick={() => setLegalModalOpen(false)}><X size={16} /></button>
             <div dangerouslySetInnerHTML={{ __html: legalContent }} />
           </div>
         </div>

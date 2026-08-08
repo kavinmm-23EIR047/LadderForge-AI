@@ -126,6 +126,9 @@ export const generate = (data) =>
 export const getProjects = (uid) =>
   api.get(`/projects/${uid}`);
 
+export const deleteProject = (pid) =>
+  api.delete(`/project/${pid}`);
+
 export const updateRung = (data) =>
   api.patch("/update-rung", data);
 

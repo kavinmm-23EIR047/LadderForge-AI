@@ -54,18 +54,234 @@ html {
   scroll-behavior: smooth;
 }
 
-/* ── GLOBAL UTILITIES ── */
-.no-print {
-  @media print { display: none !important; }
-}
+/* ── STRICT BLACK & WHITE INDUSTRIAL PRINT / PDF STYLES ── */
+@media print {
+  /* Hide all non-printable UI chrome & footers */
+  .no-print, nav, footer, header, aside, button, .ai-command-container, .modal-overlay, .tab-bar {
+    display: none !important;
+  }
 
-.printable-area {
-  @media print {
+  /* Force document to 100% white background with pure black text */
+  html, body, #root, .main-layout, .workspace-content, .canvas-area {
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
     height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .printable-area {
+    margin: 0 !important;
+    padding: 10px 0 !important;
+    width: 100% !important;
+    height: auto !important;
     overflow: visible !important;
     position: static !important;
+    background: #ffffff !important;
+    color: #000000 !important;
   }
+
+  /* Printable Header (Clean Industrial B&W) */
+  .pdf-header-only {
+    display: block !important;
+    padding: 10px 0 15px 0 !important;
+    font-family: 'Inter', sans-serif !important;
+    background: #ffffff !important;
+  }
+
+  .pdf-header-only *:not(.pdf-brand-logo):not(.pdf-brand-accent) {
+    color: #000000 !important;
+  }
+
+  .pdf-brand-logo {
+    background-color: #f97316 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .pdf-brand-logo * {
+    color: #ffffff !important;
+    fill: #ffffff !important;
+    stroke: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .pdf-brand-accent {
+    color: #f97316 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Rung cards - B&W layout */
+  .rung-row-card {
+    position: relative !important;
+    height: 110px !important;
+    min-height: 110px !important;
+    display: flex !important;
+    align-items: center !important;
+    background: #ffffff !important;
+    border-left: none !important;
+    border-bottom: 1.5px solid #000000 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    box-shadow: none !important;
+    margin-bottom: 15px !important;
+    overflow: visible !important;
+  }
+
+  .rung-inner-wrap {
+    position: relative !important;
+    height: 100% !important;
+    flex: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    overflow: visible !important;
+  }
+
+  /* Rung number badge - pure black text with thin border */
+  .rung-num-badge {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #000000 !important;
+    box-shadow: none !important;
+  }
+
+  /* Left & Right Vertical Power Rails - Crisp Solid Black Rails */
+  .power-rail-left {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    height: 100% !important;
+    width: 6px !important;
+    background-color: #000000 !important;
+    border-left: 6px solid #000000 !important;
+    z-index: 10 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .power-rail-right {
+    position: absolute !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    height: 100% !important;
+    width: 6px !important;
+    background-color: #000000 !important;
+    border-left: 6px solid #000000 !important;
+    z-index: 10 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  /* Main horizontal rung wire & instruction connection wires - Solid Black Lines */
+  .rung-wire-line {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    height: 3px !important;
+    background-color: #000000 !important;
+    border-top: 3px solid #000000 !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    z-index: 1 !important;
+  }
+
+  .instruction-wire {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    height: 3px !important;
+    background-color: #000000 !important;
+    border-top: 3px solid #000000 !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    z-index: 1 !important;
+  }
+
+  /* Contact NO & NC bars - Solid Black */
+  .contact-bar,
+  .contact-bar-nc {
+    background-color: #000000 !important;
+    border-left: 4px solid #000000 !important;
+    opacity: 1 !important;
+  }
+
+  /* Coils - Sharp B&W circle */
+  .coil-circle {
+    border: 3px solid #000000 !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+  }
+
+  .coil-circle span {
+    color: #000000 !important;
+    font-weight: 900 !important;
+  }
+
+  /* Ensure print container does NOT clip content */
+  .printable-area,
+  .canvas,
+  .rungContainer {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* PLC Box containers (Compare, Timer, Counter, Math, Move) */
+  div[style*="border"]:not(.pdf-brand-logo) {
+    border-color: #000000 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  div[style*="border"]:not(.pdf-brand-logo) *:not(.pdf-brand-logo):not(.pdf-brand-accent) {
+    color: #000000 !important;
+    border-color: #000000 !important;
+  }
+
+  /* Tag Label Chips - B&W pill chip */
+  div[style*="bottom: 82%"],
+  div[style*="bottom: 85%"] {
+    background: #ffffff !important;
+    border: 1px solid #000000 !important;
+    border-radius: 4px !important;
+    color: #000000 !important;
+  }
+
+  input {
+    color: #000000 !important;
+    background: transparent !important;
+    border: none !important;
+  }
+
+  /* Prevent page-break issues */
+  .printable-area > div > div > div {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  ::-webkit-scrollbar {
+    display: none !important;
+  }
+}
+
+.pdf-header-only {
+  display: none;
 }

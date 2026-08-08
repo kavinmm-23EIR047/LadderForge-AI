@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import useStore from "../store/useStore";
 import { useTheme } from "../hooks/useTheme";
 import LadderLogo from "./LadderLogo";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
 
 export default function Navbar() {
   const { C } = useTheme();
@@ -43,7 +44,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav style={S.nav}>
+    <nav style={S.nav} className="no-print">
       <div style={S.container}>
         {/* LOGO */}
         <button onClick={() => handleNav("/")} style={S.logoWrap}>
@@ -76,7 +77,7 @@ export default function Navbar() {
               <button style={S.profileToggle} onClick={() => setProfileOpen(!profileOpen)}>
                 <div style={S.avatar}>{initials}</div>
                 <span style={S.userName}>{(user?.name || "Profile").split(" ")[0]}</span>
-                <span style={S.arrow}>{profileOpen ? "▲" : "▼"}</span>
+                <span style={S.arrow}>{profileOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</span>
               </button>
 
               {profileOpen && (
@@ -122,7 +123,7 @@ export default function Navbar() {
                 <LadderLogo style={S.logoBox} />
                 <span style={S.logoText}>LadderForge<span style={{ color: C.brandPrimary }}> AI</span></span>
               </div>
-              <button style={S.closeSide} onClick={() => setMobileMenuOpen(false)}>✕</button>
+              <button style={S.closeSide} onClick={() => setMobileMenuOpen(false)}><X size={18} /></button>
             </div>
 
             <div style={S.sideContent}>

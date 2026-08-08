@@ -97,6 +97,38 @@ export default function LadderDiagram({ project }) {
     setActiveRungIdx(-1);
     setSimTime(0);
     setScanCount(0);
+
+    // ── INSTANT RUNG EXPLANATION GENERATOR (NO "READY..." DELAY) ──
+    const initialExplains = {};
+    newRungs.forEach((rung, idx) => {
+      const contacts = (rung.instructions || []).filter(i => i.type === "contact");
+      const coils = (rung.instructions || []).filter(i => i.type === "coil");
+      const timers = (rung.instructions || []).filter(i => i.type === "timer");
+      const counters = (rung.instructions || []).filter(i => i.type === "counter");
+      const compares = (rung.instructions || []).filter(i => i.type === "compare");
+      const maths = (rung.instructions || []).filter(i => i.type === "math");
+      const moves = (rung.instructions || []).filter(i => i.type === "move");
+
+      const cList = contacts.map(i => `${i.tag} (${i.mode === "NC" ? "NC Contact" : "NO Contact"})`).join(contacts.length > 1 ? " AND " : "");
+      const coilList = coils.map(i => `${i.tag} (${i.mode || "OTE"})`).join(", ");
+
+      if (contacts.length > 0 && coils.length > 0) {
+        initialExplains[rung.rung_id] = `Scans ${cList}. When logic continuity evaluates TRUE across Rung ${idx + 1}, energizes output coil ${coilList}.`;
+      } else if (timers.length > 0) {
+        initialExplains[rung.rung_id] = `Scans ${cList || "inputs"}. Initiates TON timer ${timers.map(t => t.tag).join(", ")} with preset ${timers[0]?.preset}ms.`;
+      } else if (counters.length > 0) {
+        initialExplains[rung.rung_id] = `Counts rising edges on input ${cList}. Increments accumulator for CTU counter ${counters.map(c => c.tag).join(", ")}.`;
+      } else if (compares.length > 0) {
+        initialExplains[rung.rung_id] = `Compares tag ${compares[0]?.tag} (${compares[0]?.operator}) against target value ${compares[0]?.value}.`;
+      } else if (maths.length > 0) {
+        initialExplains[rung.rung_id] = `Performs ${maths[0]?.operator} operation on ${maths[0]?.source_a} and ${maths[0]?.source_b}, storing result in ${maths[0]?.destination}.`;
+      } else if (moves.length > 0) {
+        initialExplains[rung.rung_id] = `Moves value from ${moves[0]?.source} to destination ${moves[0]?.destination}.`;
+      } else {
+        initialExplains[rung.rung_id] = `Executes Rung ${idx + 1} logic sequence.`;
+      }
+    });
+    setAiExplains(initialExplains);
   }, [project?.project_id]);
 
   const evaluateLadder = useCallback((prevTags, dt) => {
@@ -172,46 +204,59 @@ export default function LadderDiagram({ project }) {
     return next;
   }, [rungs, project?.plc_logic?.rungs]);
 
+  const [autoStep, setAutoStep] = useState(0);
+
+  // ── AUTO MODE: STEP-BY-STEP TRUTH TABLE & SEQUENCE GENERATOR ──
+  useEffect(() => {
+    if (!running || mode !== "auto") return;
+
+    const stepInterval = Math.max(300, 1500 / simSpeed);
+    const timer = setInterval(() => {
+      setAutoStep(prevStep => {
+        const nextStep = (prevStep + 1) % 4;
+
+        setTagValues(prev => {
+          const next = { ...prev };
+          const inputTags = Object.keys(next).filter(
+            k => !k.includes(".ACC") && !k.includes("_done") && !k.includes("_pulse")
+          );
+
+          if (inputTags.length >= 2) {
+            // Binary truth table sequence (00 -> 01 -> 10 -> 11)
+            const tagA = inputTags[0];
+            const tagB = inputTags[1];
+            next[tagA] = (nextStep === 2 || nextStep === 3);
+            next[tagB] = (nextStep === 1 || nextStep === 3);
+          } else if (inputTags.length === 1) {
+            const tagA = inputTags[0];
+            next[tagA] = (nextStep % 2 === 1);
+          }
+          return next;
+        });
+
+        return nextStep;
+      });
+    }, stepInterval);
+
+    return () => clearInterval(timer);
+  }, [running, mode, simSpeed]);
+
+  // ── PLC SCAN ENGINE (50ms scan rate) ──
   useEffect(() => {
     if (!running) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       return;
     }
 
+    const intervalMs = Math.max(20, 100 / simSpeed);
     intervalRef.current = setInterval(() => {
-      setTagValues(prev => {
-        let current = { ...prev };
-        
-        // Logical Scans
-        for (let s = 0; s < simSpeed; s++) {
-          if (mode === "auto") {
-            setSimTime(t => {
-              const nt = t + SCAN_TIME;
-              const cycleDuration = 10000;
-              const step = (nt % cycleDuration) / cycleDuration;
-
-              Object.keys(current).forEach(tag => {
-                const tagLow = tag.toLowerCase();
-                if (tagLow.includes("start") || tagLow.includes("pb_1")) current[tag] = step < 0.1;
-                if (tagLow.includes("sensor_1") || tagLow.includes("gate_open")) current[tag] = step > 0.2 && step < 0.5;
-                if (tagLow.includes("sensor_2") || tagLow.includes("limit_sw")) current[tag] = step > 0.5 && step < 0.8;
-                if (tagLow.includes("reset") || tagLow.includes("stop")) current[tag] = step > 0.9;
-              });
-              return nt;
-            });
-          }
-          current = evaluateLadder(current, SCAN_TIME);
-        }
-        return current;
-      });
-
-      // Visual Highlight moves once per physical frame (20ms)
+      setTagValues(prev => evaluateLadder(prev, intervalMs));
       setActiveRungIdx(idx => (idx + 1) % (rungs.length || 1));
       setScanCount(sc => sc + 1);
-    }, 20);
+    }, intervalMs);
 
     return () => clearInterval(intervalRef.current);
-  }, [running, mode, simSpeed, rungs.length, evaluateLadder]);
+  }, [running, simSpeed, rungs.length, evaluateLadder]);
 
   const handleUpdateInstruction = (instId, updates) => {
     const updated = (rungs || []).map(r => ({
@@ -250,7 +295,7 @@ export default function LadderDiagram({ project }) {
   return (
     <div style={S.root}>
       {/* ── MAIN TOOLBAR ── */}
-      <header style={S.toolbar}>
+      <header style={S.toolbar} className="no-print">
         <div style={S.toolGroup}>
           <button onClick={() => setRunning(!running)} style={{ ...S.runBtn, background: running ? "#ef4444" : "#22c55e" }}>
             {running ? (isSmallMobile ? "■" : "STOP SIM") : (isSmallMobile ? "▶" : "START SCAN")}
@@ -259,7 +304,7 @@ export default function LadderDiagram({ project }) {
             <button onClick={() => setMode("manual")} style={mode === "manual" ? S.modeActive : S.modeBtn}>
               {isSmallMobile ? "M" : "MANUAL"}
             </button>
-            <button onClick={() => setMode("auto")} style={mode === "auto" ? S.modeActive : S.modeBtn}>
+            <button onClick={() => { setMode("auto"); setRunning(true); }} style={mode === "auto" ? S.modeActive : S.modeBtn}>
               {isSmallMobile ? "A" : "AUTO"}
             </button>
           </div>
@@ -275,7 +320,7 @@ export default function LadderDiagram({ project }) {
       </header>
 
       {isMobile && (
-        <div style={S.tabBar}>
+        <div style={S.tabBar} className="no-print">
           <button onClick={() => setActiveTab("diagram")} style={activeTab === "diagram" ? S.tabActive : S.tab}>LADDER</button>
           <button onClick={() => setActiveTab("tags")} style={activeTab === "tags" ? S.tabActive : S.tab}>TAGS</button>
           <button onClick={() => setActiveTab("explain")} style={activeTab === "explain" ? S.tabActive : S.tab}>AI INFO</button>
@@ -284,7 +329,7 @@ export default function LadderDiagram({ project }) {
 
       <div style={S.main}>
         {(activeTab === "tags" || !isMobile) && (
-          <div style={S.sidebar}>
+          <div style={S.sidebar} className="no-print">
             <div style={S.panelTitle}>STATUS MONITOR</div>
             <div style={S.tagList}>
               {Object.entries(tagValues).filter(([k]) => !k.includes(".ACC") && !k.includes("_pulse")).map(([tag, val]) => (
@@ -336,22 +381,22 @@ export default function LadderDiagram({ project }) {
                   />
                 ))}
               </div>
-              <div style={{ height: 200 }} />
+              <div style={{ height: 200 }} className="no-print" />
             </div>
           </div>
         )}
 
         {(activeTab === "explain" || !isMobile) && (
-          <div style={S.aiPanel}>
+          <div style={S.aiPanel} className="no-print">
             <div style={S.panelTitle}>LOGIC AI ANALYSIS</div>
             <button onClick={explainAll} disabled={aiLoading} style={S.aiActionBtn}>
               {aiLoading ? "ANALYZING..." : "RE-EXPLAIN ALL"}
             </button>
             <div style={S.aiScroll}>
               {(rungs || []).map((rung, idx) => (
-                <div key={rung.rung_id} style={{ ...S.aiCard, borderLeft: selectedRungId === rung.rung_id ? `4px solid ${COLOR_ACTIVE}` : "4px solid transparent" }}>
+                <div key={rung.rung_id} style={{ ...S.aiCard, borderLeftColor: selectedRungId === rung.rung_id ? COLOR_ACTIVE : "transparent" }}>
                   <div style={S.aiRungNum}>RUNG {idx + 1}</div>
-                  <p style={S.aiText}>{aiExplains[rung.rung_id] || "Ready..."}</p>
+                  <p style={S.aiText}>{aiExplains[rung.rung_id] || "Analyzing rung logic..."}</p>
                 </div>
               ))}
             </div>
@@ -393,7 +438,7 @@ function makeStyles(C, isMobile, activeTab, isSmallMobile, isDark) {
     aiPanel: { width: isMobile ? "100%" : 320, borderLeft: isMobile ? "none" : `1px solid ${C.borderDefault}`, padding: 20, display: "flex", flexDirection: "column", background: C.bgCard, height: isMobile ? '100%' : '100%' },
     aiActionBtn: { width: "100%", padding: 12, border: `1.5px solid ${COLOR_ACTIVE}`, background: "none", color: COLOR_ACTIVE, fontSize: 10, fontWeight: 900, borderRadius: 10, cursor: "pointer", marginBottom: 20, transition: '0.2s' },
     aiScroll: { flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 },
-    aiCard: { padding: 16, background: C.bgInput, borderRadius: 14, border: `1px solid ${C.borderDefault}` },
+    aiCard: { padding: 16, background: C.bgInput, borderRadius: 14, borderTop: `1px solid ${C.borderDefault}`, borderRight: `1px solid ${C.borderDefault}`, borderBottom: `1px solid ${C.borderDefault}`, borderLeft: "4px solid transparent" },
     aiRungNum: { fontSize: 9, fontWeight: 900, color: C.textMuted, marginBottom: 10 },
     aiText: { fontSize: 12, color: C.textSecondary, lineHeight: 1.7, margin: 0 }
   };

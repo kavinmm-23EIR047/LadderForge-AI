@@ -437,6 +437,25 @@ def fix_ai_format(plc):
                     "destination": inst.get("destination", "result")
                 })
 
+            # ── LOGIC GATE AUTO-EXPANSION (AND / OR / XOR / NOT) ──────────────
+            elif t in ["and", "gate_and"]:
+                cleaned.append({ "type": "contact", "mode": "NO", "tag": inst.get("tag_a") or "input_a" })
+                cleaned.append({ "type": "contact", "mode": "NO", "tag": inst.get("tag_b") or "input_b" })
+                cleaned.append({ "type": "coil", "mode": "OTE", "tag": inst.get("tag_out") or "and_output" })
+
+            elif t in ["or", "gate_or"]:
+                cleaned.append({ "type": "contact", "mode": "NO", "tag": inst.get("tag_a") or "input_a" })
+                cleaned.append({ "type": "coil", "mode": "OTE", "tag": inst.get("tag_out") or "or_output" })
+
+            elif t in ["xor", "gate_xor"]:
+                cleaned.append({ "type": "contact", "mode": "NO", "tag": inst.get("tag_a") or "input_a" })
+                cleaned.append({ "type": "contact", "mode": "NC", "tag": inst.get("tag_b") or "input_b" })
+                cleaned.append({ "type": "coil", "mode": "OTE", "tag": inst.get("tag_out") or "xor_output" })
+
+            elif t in ["not", "gate_not"]:
+                cleaned.append({ "type": "contact", "mode": "NC", "tag": inst.get("tag_a") or "input_a" })
+                cleaned.append({ "type": "coil", "mode": "OTE", "tag": inst.get("tag_out") or "not_output" })
+
             # ── KEEP OTHER VALID BLOCKS AS-IS ─────────────────────────────────
             else:
                 cleaned.append(inst)
@@ -449,51 +468,21 @@ def fix_ai_format(plc):
 # ---------------- REMOVE INVALID ----------------
 def remove_invalid(plc):
     """
-    Remove unsupported logical words and empty-type instructions.
+    Remove empty-type instructions.
     """
-    invalid_types = {"and", "or", ""}
+    invalid_types = {""}
 
     for rung in plc.get("rungs", []):
-        before = len(rung.get("instructions", []))
         rung["instructions"] = [
             inst for inst in rung.get("instructions", [])
-            if inst.get("type", "").lower() not in invalid_types
+            if inst.get("type", "").strip().lower() not in invalid_types
         ]
-        after = len(rung["instructions"])
-        if before != after:
-            logger.warning(
-                f"[remove_invalid] Removed {before - after} invalid instruction(s) "
-                f"from {rung.get('rung_id', '?')}"
-            )
 
     return plc
 
 
 # ---------------- FIX LATCH / UNLATCH PAIRS ----------------
 def fix_latch_pairs(plc):
-    """
-    Validate that every OTL (latch) coil tag has a corresponding
-    OTU (unlatch) coil tag somewhere in the program, and vice-versa.
-
-    Latch / Unlatch concept:
-    ┌──────────────────────────────────────────────────────────┐
-    │  OTL  (Output Latch)                                     │
-    │  ─────────────────                                       │
-    │  Sets the bit to 1 and HOLDS it even if the rung        │
-    │  goes FALSE. The bit stays ON until an OTU clears it.   │
-    │                                                          │
-    │  OTU  (Output Unlatch)                                   │
-    │  ──────────────────────                                  │
-    │  Clears the bit to 0 and HOLDS it even if the rung      │
-    │  goes FALSE. The bit stays OFF until an OTL sets it.    │
-    │                                                          │
-    │  Rule: every OTL tag MUST have a matching OTU tag and   │
-    │  vice-versa, otherwise the bit can never be released.   │
-    └──────────────────────────────────────────────────────────┘
-
-    Logs a WARNING for unmatched pairs — does NOT auto-generate
-    missing rungs (that is the AI's responsibility).
-    """
     latched_tags   = set()
     unlatched_tags = set()
 
@@ -507,38 +496,21 @@ def fix_latch_pairs(plc):
                 elif mode == "OTU":
                     unlatched_tags.add(tag)
 
-    # OTL without a matching OTU
-    for tag in latched_tags - unlatched_tags:
-        logger.warning(
-            f"[fix_latch_pairs] '{tag}' is latched (OTL) but never unlatched (OTU). "
-            f"Add a rung with 'coil OTU {tag}' to allow de-energizing."
-        )
-
-    # OTU without a matching OTL
-    for tag in unlatched_tags - latched_tags:
-        logger.warning(
-            f"[fix_latch_pairs] '{tag}' is unlatched (OTU) but never latched (OTL). "
-            f"Verify this is intentional (e.g. clearing a bit set by hardware)."
-        )
-
     return plc
 
 
 # ---------------- FIX TIMER ----------------
-# app/services/plc_parser.py
-# Add this INSIDE fix_timer(), after building new_list for each rung
-
 def fix_timer(plc):
     rungs = plc.get("rungs", [])
 
-    # First pass — collect all timer block tags
+    # Collect all timer block tags
     timer_tags = set()
     for rung in rungs:
         for inst in rung.get("instructions", []):
             if inst.get("type") == "timer":
                 timer_tags.add(inst.get("tag", ""))
 
-    for i, rung in enumerate(rungs):
+    for rung in rungs:
         new_list = []
 
         for inst in rung.get("instructions", []):
@@ -548,34 +520,14 @@ def fix_timer(plc):
                 inst["acc"]    = inst.get("acc", 0)
                 inst["done"]   = inst.get("done", False)
                 new_list.append(inst)
-
-                if i + 1 < len(rungs):
-                    next_rung     = rungs[i + 1]
-                    done_tag      = f"{tag}_done"
-                    existing_tags = [
-                        x.get("tag") for x in next_rung.get("instructions", [])
-                    ]
-                    if done_tag not in existing_tags:
-                        next_rung["instructions"].insert(0, {
-                            "type": "contact",
-                            "mode": "NO",
-                            "tag":  done_tag
-                        })
-                        logger.info(
-                            f"[fix_timer] Injected '{done_tag}' into rung "
-                            f"{next_rung.get('rung_id', i + 2)}"
-                        )
             else:
-                # ── NEW: remove contacts that reference a raw timer tag ──
+                # Standardize contacts referencing a raw timer tag to use _done suffix
                 if (
                     inst.get("type") == "contact" and
                     inst.get("tag") in timer_tags
                 ):
-                    logger.warning(
-                        f"[fix_timer] Removed invalid contact referencing "
-                        f"timer block tag '{inst.get('tag')}' in rung "
-                        f"{rung.get('rung_id', '?')} — use '{inst.get('tag')}_done' instead"
-                    )
+                    inst["tag"] = f"{inst['tag']}_done"
+                    new_list.append(inst)
                 else:
                     new_list.append(inst)
 
@@ -628,18 +580,25 @@ def fix_order(plc):
 # ---------------- REMOVE DUPLICATE RUNGS ----------------
 def remove_duplicate_rungs(plc):
     """
-    Remove rungs whose (type, tag) fingerprint has already been seen.
+    Remove rungs whose complete instruction fingerprints (type, mode, tag, subtype, operator, value) match.
     """
     seen   = set()
     unique = []
 
     for rung in plc.get("rungs", []):
         key = tuple(
-            (inst.get("type"), inst.get("tag"))
+            (
+                inst.get("type"),
+                inst.get("mode", ""),
+                inst.get("tag", ""),
+                inst.get("subtype", ""),
+                inst.get("operator", ""),
+                inst.get("value", "")
+            )
             for inst in rung.get("instructions", [])
         )
 
-        if key not in seen:
+        if key not in seen and len(rung.get("instructions", [])) > 0:
             seen.add(key)
             unique.append(rung)
         else:
@@ -665,3 +624,169 @@ def normalize_plc(plc):
             inst["id"] = f"r{r_index}_i{i_index}"
 
     return plc
+
+
+# ---------------- LOGIC GATES PRESET RESOLVER ----------------
+def get_logic_gate_preset(prompt: str):
+    """
+    Check if the user prompt is requesting one of the 8 standard Logic Gates
+    (AND, OR, XOR, NAND, NOR, NOT, XNOR, BUFFER).
+    Returns the exact 100% textbook standard IEC ladder logic diagram or None.
+    """
+    p = (prompt or "").lower().strip()
+    
+    # 1. XNOR GATE (A=B -> C=1): NO A & NO B on R1, NC A & NC B on R2
+    if "xnor" in p or "exclusive-nor" in p or "ex-nor" in p:
+        return {
+            "network_id": 1,
+            "rungs": [
+                {
+                    "rung_id": "r1",
+                    "instructions": [
+                        { "id": "r1_i1", "type": "contact", "mode": "NO", "tag": "A" },
+                        { "id": "r1_i2", "type": "contact", "mode": "NO", "tag": "B" },
+                        { "id": "r1_i3", "type": "coil", "mode": "OTE", "tag": "C" }
+                    ]
+                },
+                {
+                    "rung_id": "r2",
+                    "instructions": [
+                        { "id": "r2_i1", "type": "contact", "mode": "NC", "tag": "A" },
+                        { "id": "r2_i2", "type": "contact", "mode": "NC", "tag": "B" },
+                        { "id": "r2_i3", "type": "coil", "mode": "OTE", "tag": "C" }
+                    ]
+                }
+            ]
+        }
+
+    # 2. XOR GATE (A!=B -> C=1): NC A & NO B on R1, NO A & NC B on R2
+    if "xor" in p or "exclusive-or" in p or "ex-or" in p:
+        return {
+            "network_id": 1,
+            "rungs": [
+                {
+                    "rung_id": "r1",
+                    "instructions": [
+                        { "id": "r1_i1", "type": "contact", "mode": "NC", "tag": "A" },
+                        { "id": "r1_i2", "type": "contact", "mode": "NO", "tag": "B" },
+                        { "id": "r1_i3", "type": "coil", "mode": "OTE", "tag": "C" }
+                    ]
+                },
+                {
+                    "rung_id": "r2",
+                    "instructions": [
+                        { "id": "r2_i1", "type": "contact", "mode": "NO", "tag": "A" },
+                        { "id": "r2_i2", "type": "contact", "mode": "NC", "tag": "B" },
+                        { "id": "r2_i3", "type": "coil", "mode": "OTE", "tag": "C" }
+                    ]
+                }
+            ]
+        }
+
+    # 3. NAND GATE (NOT(A AND B)): Parallel NC contacts (NC A -> C, NC B -> C)
+    if "nand" in p:
+        return {
+            "network_id": 1,
+            "rungs": [
+                {
+                    "rung_id": "r1",
+                    "instructions": [
+                        { "id": "r1_i1", "type": "contact", "mode": "NC", "tag": "A" },
+                        { "id": "r1_i2", "type": "coil", "mode": "OTE", "tag": "C" }
+                    ]
+                },
+                {
+                    "rung_id": "r2",
+                    "instructions": [
+                        { "id": "r2_i1", "type": "contact", "mode": "NC", "tag": "B" },
+                        { "id": "r2_i2", "type": "coil", "mode": "OTE", "tag": "C" }
+                    ]
+                }
+            ]
+        }
+
+    # 4. NOR GATE (NOT(A OR B)): Series NC contacts (NC A & NC B -> C)
+    if "nor" in p:
+        return {
+            "network_id": 1,
+            "rungs": [
+                {
+                    "rung_id": "r1",
+                    "instructions": [
+                        { "id": "r1_i1", "type": "contact", "mode": "NC", "tag": "A" },
+                        { "id": "r1_i2", "type": "contact", "mode": "NC", "tag": "B" },
+                        { "id": "r1_i3", "type": "coil", "mode": "OTE", "tag": "C" }
+                    ]
+                }
+            ]
+        }
+
+    # 5. NOT GATE / INVERTER (NC A -> C)
+    if "not" in p or "inverter" in p:
+        return {
+            "network_id": 1,
+            "rungs": [
+                {
+                    "rung_id": "r1",
+                    "instructions": [
+                        { "id": "r1_i1", "type": "contact", "mode": "NC", "tag": "A" },
+                        { "id": "r1_i2", "type": "coil", "mode": "OTE", "tag": "C" }
+                    ]
+                }
+            ]
+        }
+
+    # 6. AND GATE (NO A & NO B -> C)
+    if "and" in p and "land" not in p and "band" not in p:
+        return {
+            "network_id": 1,
+            "rungs": [
+                {
+                    "rung_id": "r1",
+                    "instructions": [
+                        { "id": "r1_i1", "type": "contact", "mode": "NO", "tag": "A" },
+                        { "id": "r1_i2", "type": "contact", "mode": "NO", "tag": "B" },
+                        { "id": "r1_i3", "type": "coil", "mode": "OTE", "tag": "C" }
+                    ]
+                }
+            ]
+        }
+
+    # 7. OR GATE (NO A -> C, NO B -> C)
+    if "or" in p and "motor" not in p and "door" not in p and "sensor" not in p and "floor" not in p and "error" not in p:
+        return {
+            "network_id": 1,
+            "rungs": [
+                {
+                    "rung_id": "r1",
+                    "instructions": [
+                        { "id": "r1_i1", "type": "contact", "mode": "NO", "tag": "A" },
+                        { "id": "r1_i2", "type": "coil", "mode": "OTE", "tag": "C" }
+                    ]
+                },
+                {
+                    "rung_id": "r2",
+                    "instructions": [
+                        { "id": "r2_i1", "type": "contact", "mode": "NO", "tag": "B" },
+                        { "id": "r2_i2", "type": "coil", "mode": "OTE", "tag": "C" }
+                    ]
+                }
+            ]
+        }
+
+    # 8. BUFFER GATE (NO A -> C)
+    if "buffer" in p or "yes gate" in p:
+        return {
+            "network_id": 1,
+            "rungs": [
+                {
+                    "rung_id": "r1",
+                    "instructions": [
+                        { "id": "r1_i1", "type": "contact", "mode": "NO", "tag": "A" },
+                        { "id": "r1_i2", "type": "coil", "mode": "OTE", "tag": "C" }
+                    ]
+                }
+            ]
+        }
+
+    return None
